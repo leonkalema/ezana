@@ -1,0 +1,68 @@
+import { ZodError } from 'zod';
+export const validateRequest = (schema) => {
+    return (req, res, next) => {
+        try {
+            schema.parse(req.body);
+            next();
+        }
+        catch (error) {
+            if (error instanceof ZodError) {
+                const errorMessages = error.errors.map(err => ({
+                    field: err.path.join('.'),
+                    message: err.message
+                }));
+                res.status(400).json({
+                    error: 'Validation failed',
+                    details: errorMessages
+                });
+                return;
+            }
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    };
+};
+export const validateParams = (schema) => {
+    return (req, res, next) => {
+        try {
+            schema.parse(req.params);
+            next();
+        }
+        catch (error) {
+            if (error instanceof ZodError) {
+                const errorMessages = error.errors.map(err => ({
+                    field: err.path.join('.'),
+                    message: err.message
+                }));
+                res.status(400).json({
+                    error: 'Parameter validation failed',
+                    details: errorMessages
+                });
+                return;
+            }
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    };
+};
+export const validateQuery = (schema) => {
+    return (req, res, next) => {
+        try {
+            schema.parse(req.query);
+            next();
+        }
+        catch (error) {
+            if (error instanceof ZodError) {
+                const errorMessages = error.errors.map(err => ({
+                    field: err.path.join('.'),
+                    message: err.message
+                }));
+                res.status(400).json({
+                    error: 'Query validation failed',
+                    details: errorMessages
+                });
+                return;
+            }
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    };
+};
+//# sourceMappingURL=validation-middleware.js.map
