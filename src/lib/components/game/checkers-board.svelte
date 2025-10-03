@@ -5,9 +5,11 @@
   $: ({ currentGame, playerRole, selectedSquare, validMoves } = $gameStore);
   $: board = currentGame?.game_state.board || [];
   $: currentPlayer = currentGame?.game_state.currentPlayer;
-  $: isMyTurn = currentGame && (
-    (playerRole === 'player1' && currentPlayer === 'red') ||
-    (playerRole === 'player2' && currentPlayer === 'black')
+  $: isMyTurn = Boolean(
+    currentGame && playerRole && (
+      (playerRole === 'player1' && currentPlayer === 'red') ||
+      (playerRole === 'player2' && currentPlayer === 'black')
+    )
   );
   
   function handleSquareClick(row: number, col: number) {

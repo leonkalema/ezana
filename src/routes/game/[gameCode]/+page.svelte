@@ -30,9 +30,20 @@
   }
   
   function isMyTurn() {
-    if (!currentGame) return false;
-    return (playerRole === 'player1' && currentGame.game_state.currentPlayer === 'red') ||
-           (playerRole === 'player2' && currentGame.game_state.currentPlayer === 'black');
+    if (!currentGame || currentGame.status !== 'active') return false;
+    if (!playerRole) return false;
+    const current = currentGame.game_state.currentPlayer;
+    return (playerRole === 'player1' && current === 'red') ||
+           (playerRole === 'player2' && current === 'black');
+  }
+
+  async function quitGame() {
+    try {
+      await gameStore.abandonGame();
+      goto('/dashboard');
+    } catch (e) {
+      console.error('Failed to quit game', e);
+    }
   }
 </script>
 
@@ -44,7 +55,7 @@
   {:else if currentGame}
     <!-- Top Bar -->
     <div class="bg-white shadow-sm p-4">
-      <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div class="max-w-2xl mx-auto flex items-center justify-between gap-2">
         <button
           on:click={() => goto('/dashboard')}
           class="text-gray-600 hover:text-gray-900 font-medium"
@@ -54,12 +65,22 @@
         
         <div class="font-mono font-bold text-lg">{gameCode}</div>
         
-        <button
-          on:click={copyCode}
-          class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600 relative"
-        >
-          {showCopied ? 'Copied!' : 'Share'}
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            on:click={copyCode}
+            class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600 relative"
+          >
+            {showCopied ? 'Copied!' : 'Share'}
+          </button>
+          {#if currentGame && (currentGame.status === 'active' || currentGame.status === 'waiting')}
+            <button
+              on:click={quitGame}
+              class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600"
+            >
+              Quit
+            </button>
+          {/if}
+        </div>
       </div>
     </div>
     

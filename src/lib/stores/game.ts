@@ -198,9 +198,13 @@ function createGameStore() {
       try {
         const response = await apiClient.getGame(gameCode);
         
-        // Determine player role
-        const currentUserId = JSON.parse(localStorage.getItem('user_data') || '{}').id;
-        const playerRole = response.gameSession.player1_id === currentUserId ? 'player1' : 'player2';
+        // Determine player role accurately (support spectators too)
+        const currentUserId = JSON.parse(localStorage.getItem('user_data') || '{}').id as number | undefined;
+        const playerRole: PlayerRole = currentUserId === response.gameSession.player1_id
+          ? 'player1'
+          : currentUserId === response.gameSession.player2_id
+            ? 'player2'
+            : null;
         
         update(state => ({
           ...state,
