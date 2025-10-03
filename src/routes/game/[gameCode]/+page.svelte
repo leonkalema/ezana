@@ -156,24 +156,6 @@
             {currentGame.winner_id === (playerRole === 'player1' ? currentGame.player1_id : currentGame.player2_id) ? 'You won!' : 'You lost!'}
           </p>
         {/if}
-      {:else if isMyTurn()}
-        <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-3 mx-4 shadow-lg animate-pulse">
-          <div class="flex items-center justify-center space-x-3">
-            <div class="w-4 h-4 bg-white rounded-full animate-bounce"></div>
-            <p class="font-bold text-lg">🎯 YOUR TURN</p>
-            <div class="w-4 h-4 bg-white rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-          </div>
-          <p class="text-blue-100 text-sm mt-1">Make your move!</p>
-        </div>
-      {:else}
-        <div class="bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg p-3 mx-4 shadow-lg">
-          <div class="flex items-center justify-center space-x-3">
-            <div class="w-3 h-3 bg-gray-300 rounded-full animate-pulse"></div>
-            <p class="font-bold text-lg">⏳ OPPONENT'S TURN</p>
-            <div class="w-3 h-3 bg-gray-300 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-          </div>
-          <p class="text-gray-200 text-sm mt-1">Waiting for opponent to move...</p>
-        </div>
       {/if}
     </div>
     

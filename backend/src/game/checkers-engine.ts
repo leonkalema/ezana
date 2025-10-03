@@ -86,16 +86,58 @@ export class CheckersEngine {
 
     const distance = Math.abs(rowDiff);
 
-    // For regular pieces: only allow forward direction for non-capture moves
-    if (piece.type === 'regular' && distance === 1) {
-      const correctDirection = playerColor === 'red' ? rowDiff < 0 : rowDiff > 0;
-      if (!correctDirection) {
+    // Handle basic moves and captures
+    if (distance === 1) {
+      // Regular single-step move - must be forward for regular pieces
+      if (piece.type === 'regular') {
+        const correctDirection = playerColor === 'red' ? rowDiff < 0 : rowDiff > 0;
+        if (!correctDirection) {
+          return false;
+        }
+      }
+      return true; // Valid single step move
+    }
+    
+    if (distance === 2) {
+      // Basic capture - check for opponent piece in middle
+      const middleRow = from.row + rowDiff / 2;
+      const middleCol = from.col + (to.col - from.col) / 2;
+      const middlePiece = board[middleRow]?.[middleCol];
+
+      // Must have opponent piece to jump over
+      if (!middlePiece?.type || middlePiece.color === playerColor) {
         return false;
       }
+
+      // Regular pieces can capture in any direction (including backwards)
+      return true;
     }
 
-    // Check if path is clear and validate captures
+    // For longer distances, use enhanced path validation
     return this.isValidPath(board, from, to, playerColor, piece.type === 'king');
+  }
+
+  private static pathHasCaptures(board: CheckersPiece[][], from: Position, to: Position, playerColor: 'red' | 'black'): boolean {
+    const rowStep = to.row > from.row ? 1 : -1;
+    const colStep = to.col > from.col ? 1 : -1;
+    const distance = Math.abs(to.row - from.row);
+
+    let currentRow = from.row + rowStep;
+    let currentCol = from.col + colStep;
+
+    // Check each square along the path for opponent pieces
+    for (let i = 1; i < distance; i++) {
+      const square = board[currentRow]?.[currentCol];
+      
+      if (square?.type !== null && square?.color !== playerColor) {
+        return true; // Found an opponent piece to capture
+      }
+      
+      currentRow += rowStep;
+      currentCol += colStep;
+    }
+
+    return false;
   }
 
   private static isValidPath(board: CheckersPiece[][], from: Position, to: Position, playerColor: 'red' | 'black', isKing: boolean): boolean {
