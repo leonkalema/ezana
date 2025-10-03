@@ -59,22 +59,48 @@ export function getValidMovesForPosition(gameState: any, position: Position): Po
         }
       }
 
-      // Capture handling: if we meet a piece at distance 1
+      // Capture handling: encountered a piece along the ray
       if (targetSquare.type !== null) {
-        // If it's an opponent at distance 1, check the square just beyond (distance 2)
-        if (distance === 1 && targetSquare.color !== piece.color) {
-          const jumpRow = position.row + rowDir * 2;
-          const jumpCol = position.col + colDir * 2;
-          if (jumpRow >= 0 && jumpRow < 8 && jumpCol >= 0 && jumpCol < 8) {
-            const landing = board[jumpRow]?.[jumpCol];
-            if (landing && landing.type === null) {
-              // Valid simple capture
-              validMoves.push({ row: jumpRow, col: jumpCol });
+        const isOpponent = targetSquare.color !== piece.color;
+        if (!isOpponent) {
+          // Own piece blocks immediately
+          break;
+        }
+        // Opponent encountered
+        if (piece.type === 'regular') {
+          // Regular piece: only allow immediate jump (distance must be 2)
+          if (distance === 1) {
+            const jumpRow = position.row + rowDir * 2;
+            const jumpCol = position.col + colDir * 2;
+            if (jumpRow >= 0 && jumpRow < 8 && jumpCol >= 0 && jumpCol < 8) {
+              const landing = board[jumpRow]?.[jumpCol];
+              if (landing && landing.type === null) {
+                validMoves.push({ row: jumpRow, col: jumpCol });
+              }
             }
           }
+          // After encountering a piece, regular cannot look further in this ray
+          break;
+        } else {
+          // King: allow flying capture — any empty square beyond the single opponent
+          let jumpDist = distance + 1;
+          while (true) {
+            const landRow = position.row + rowDir * jumpDist;
+            const landCol = position.col + colDir * jumpDist;
+            if (landRow < 0 || landRow >= 8 || landCol < 0 || landCol >= 8) break;
+            const landSq = board[landRow]?.[landCol];
+            if (!landSq) break;
+            if (landSq.type === null) {
+              validMoves.push({ row: landRow, col: landCol });
+              jumpDist++;
+              continue;
+            }
+            // Blocked beyond
+            break;
+          }
+          // Only one opponent allowed along the path; stop this direction after processing
+          break;
         }
-        // Stop scanning past the first occupied square in this direction
-        break;
       }
     }
   }

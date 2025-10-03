@@ -73,6 +73,7 @@ export interface CheckersMove {
   to: Position;
   capturedPieces?: Position[];
   isKingMove?: boolean;
+  path?: Position[]; // optional multi-jump path (from..to)
   timestamp: Date;
 }
 

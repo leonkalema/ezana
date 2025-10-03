@@ -4,6 +4,7 @@ import { GameMoveModel } from '../models/game-move-model.js';
 import { MatchmakingModel } from '../models/matchmaking-model.js';
 import { CheckersEngine } from '../game/checkers-engine.js';
 import { CreateGameInput, JoinGameInput, GameMoveInput } from '../validation/schemas.js';
+import { applyMovePath } from '../game/move-utils.js';
 import { AuthenticatedRequest } from '../types/index.js';
 
 export class GameController {
@@ -177,34 +178,48 @@ export class GameController {
         return;
       }
 
-      // Validate the move
-      const moveWithTimestamp = { ...move, timestamp: new Date() };
-      const isValidMove = CheckersEngine.isValidMove(
-        gameSession.game_state,
-        moveWithTimestamp,
-        userId,
-        playerRole === 'player1'
-      );
+      // Determine if a multi-jump path was provided
+      const isPlayer1 = playerRole === 'player1';
+      const path = move.path && move.path.length >= 2 ? move.path : undefined;
 
-      if (!isValidMove) {
-        res.status(400).json({ error: 'Invalid move' });
-        return;
+      let updatedState;
+      if (path) {
+        // Apply the entire path (multi-jump or long king move)
+        const applied = applyMovePath(gameSession.game_state, path, isPlayer1);
+        if (!applied) {
+          res.status(400).json({ error: 'Invalid move path' });
+          return;
+        }
+        updatedState = applied.state;
+      } else {
+        // Fallback: single segment validation via engine
+        const moveWithTimestamp = { ...move, timestamp: new Date() };
+        const isValidMove = CheckersEngine.isValidMove(
+          gameSession.game_state,
+          moveWithTimestamp,
+          userId,
+          isPlayer1
+        );
+        if (!isValidMove) {
+          res.status(400).json({ error: 'Invalid move' });
+          return;
+        }
+        updatedState = CheckersEngine.applyMove(gameSession.game_state, moveWithTimestamp);
       }
 
-      // Apply the move
-      const newGameState = CheckersEngine.applyMove(gameSession.game_state, moveWithTimestamp);
       const newCurrentTurn = playerRole === 'player1' ? 'player2' : 'player1';
 
       // Update game session
-      await GameSessionModel.updateGameState(gameCode, newGameState, newCurrentTurn);
+      await GameSessionModel.updateGameState(gameCode, updatedState, newCurrentTurn);
 
-      // Save move to history
+      // Save move to history (consolidated)
       const moveNumber = await GameMoveModel.getLastMoveNumber(gameSession.id) + 1;
-      await GameMoveModel.create(gameSession.id, userId, moveWithTimestamp, moveNumber);
+      const savedMove = { ...move, timestamp: new Date() } as any;
+      await GameMoveModel.create(gameSession.id, userId, savedMove, moveNumber);
 
       // Check if game ended
-      if (newGameState.gameStatus === 'completed') {
-        const winnerId = newGameState.winner === 'red' 
+      if (updatedState.gameStatus === 'completed') {
+        const winnerId = updatedState.winner === 'red' 
           ? gameSession.player1_id 
           : gameSession.player2_id;
         await GameSessionModel.endGame(gameCode, winnerId, 'completed');
@@ -216,7 +231,7 @@ export class GameController {
       res.json({
         message: 'Move made successfully',
         gameSession: updatedGameSession,
-        move: moveWithTimestamp
+        move: savedMove
       });
     } catch (error) {
       console.error('Make move error:', error);

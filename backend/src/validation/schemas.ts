@@ -45,7 +45,9 @@ export const gameMoveSchema = z.object({
     from: positionSchema,
     to: positionSchema,
     capturedPieces: z.array(positionSchema).optional(),
-    isKingMove: z.boolean().optional()
+    isKingMove: z.boolean().optional(),
+    // Optional multi-jump path, must start with `from` and end with `to`
+    path: z.array(positionSchema).min(2).optional()
   })
 });
 
