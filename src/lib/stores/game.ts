@@ -573,11 +573,25 @@ function isValidPath(board: any[][], from: Position, to: Position, playerColor: 
   const colStep = to.col > from.col ? 1 : -1;
   const distance = Math.abs(to.row - from.row);
 
+  // Special case for basic capture (distance 2) - matches backend logic
+  if (distance === 2) {
+    const middleRow = from.row + rowStep;
+    const middleCol = from.col + colStep;
+    const middlePiece = board[middleRow]?.[middleCol];
+    
+    // Must have opponent piece to jump over
+    if (!middlePiece?.type || middlePiece.color === playerColor) {
+      return false;
+    }
+    // Regular pieces can capture in any direction (including backwards)
+    return true;
+  }
+
   let currentRow = from.row + rowStep;
   let currentCol = from.col + colStep;
   let captureCount = 0;
 
-  // Check each square along the path
+  // Check each square along the path for longer moves
   for (let i = 1; i < distance; i++) {
     const square = board[currentRow]?.[currentCol];
     
