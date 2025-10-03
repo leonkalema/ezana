@@ -12,6 +12,7 @@ import { socketManager } from '../utils/socket.js';
 import { getValidMovesForPosition as computeValidMoves } from '../logic/checkers-moves.js';
 import { notificationStore } from './notification.js';
 import { soundManager } from '../utils/sound.js';
+import { setupGameSocketListeners } from '../realtime/game-socket.js';
 
 interface GameState {
   currentGame: GameSession | null;
@@ -42,175 +43,13 @@ const initialState: GameState = {
 function createGameStore() {
   const { subscribe, set, update } = writable<GameState>(initialState);
 
-  // Set up socket event listeners
-  function setupSocketListeners(): void {
-    socketManager.onGameState((data) => {
-      update(state => {
-        const newState = {
-          ...state,
-          currentGame: data.gameSession,
-          playerRole: data.playerRole,
-          selectedSquare: null,
-          validMoves: [],
-          lastTurn: data.gameSession.current_turn
-        };
-        
-        // Check if it's now the player's turn and show notification
-        if (state.lastTurn && state.lastTurn !== data.gameSession.current_turn && data.gameSession.status === 'active') {
-          const isMyTurn = (data.playerRole === 'player1' && data.gameSession.current_turn === 'player1') ||
-                          (data.playerRole === 'player2' && data.gameSession.current_turn === 'player2');
-          
-          if (isMyTurn) {
-            notificationStore.success('🎯 Your turn! Make your move', 4000);
-            soundManager.playTurnNotification();
-          } else {
-            notificationStore.info('⏳ Opponent made a move', 3000);
-            soundManager.playOpponentMove();
-          }
-        }
-
-        // Check for game end
-        if (data.gameSession.status === 'completed' && state.currentGame?.status !== 'completed') {
-          const currentUserId = JSON.parse(localStorage.getItem('user_data') || '{}').id as number | undefined;
-          const isWinner = data.gameSession.winner_id === currentUserId;
-          
-          if (isWinner) {
-            notificationStore.success('🏆 Congratulations! You won the game!', 6000);
-            soundManager.playGameEnd();
-            setTimeout(() => soundManager.playCelebration(), 1000);
-          } else {
-            notificationStore.info('🎮 Game ended. Great effort!', 5000);
-            soundManager.playGameLoss();
-          }
-        }
-        
-        return newState;
-      });
-    });
-
-    socketManager.onGameStateUpdated((data) => {
-      update(state => {
-        const newState = {
-          ...state,
-          currentGame: data.gameSession,
-          selectedSquare: null,
-          validMoves: []
-        };
-        
-        // Check if turn changed and show notification
-        if (state.lastTurn && state.lastTurn !== data.gameSession.current_turn && data.gameSession.status === 'active') {
-          const isMyTurn = (state.playerRole === 'player1' && data.gameSession.current_turn === 'player1') ||
-                          (state.playerRole === 'player2' && data.gameSession.current_turn === 'player2');
-          
-          if (isMyTurn) {
-            notificationStore.success('🎯 Your turn! Make your move', 4000);
-            soundManager.playTurnNotification();
-          } else {
-            notificationStore.info('⏳ Opponent made a move', 3000);
-            soundManager.playOpponentMove();
-          }
-        }
-
-        // Check for game end
-        if (data.gameSession.status === 'completed' && state.currentGame?.status !== 'completed') {
-          const currentUserId = JSON.parse(localStorage.getItem('user_data') || '{}').id as number | undefined;
-          const isWinner = data.gameSession.winner_id === currentUserId;
-          
-          if (isWinner) {
-            notificationStore.success('🏆 Congratulations! You won the game!', 6000);
-            soundManager.playGameEnd();
-            setTimeout(() => soundManager.playCelebration(), 1000);
-          } else {
-            notificationStore.info('🎮 Game ended. Great effort!', 5000);
-            soundManager.playGameLoss();
-          }
-        }
-        
-        newState.lastTurn = data.gameSession.current_turn;
-        return newState;
-      });
-    });
-
-    socketManager.onMoveMade((data) => {
-      // Clear selection after move and request a fresh game state broadcast
-      update(state => ({
-        ...state,
-        selectedSquare: null,
-        validMoves: []
-      }));
-      // Ask server to emit the latest state so both players get turn changes immediately
-      socketManager.notifyGameUpdated(data.gameCode);
-    });
-
-    socketManager.onPlayerJoined((data) => {
-      console.log('Player joined:', data);
-      notificationStore.success('🎮 Opponent joined! Game starting...', 4000);
-      soundManager.playGameStart();
-      // Clear selection and request a state broadcast (useful when the second player arrives)
-      update(state => ({
-        ...state,
-        selectedSquare: null,
-        validMoves: []
-      }));
-      socketManager.notifyGameUpdated(data.gameCode);
-    });
-
-    socketManager.onPlayerLeft((data) => {
-      console.log('Player left:', data);
-      notificationStore.warning('👋 Opponent left the game', 4000);
-    });
-
-    socketManager.onPlayerDisconnected((data) => {
-      console.log('Player disconnected:', data);
-      notificationStore.warning(`📡 ${data.username} disconnected`, 4000);
-    });
-
-    socketManager.onMessageReceived((data) => {
-      update(state => ({
-        ...state,
-        gameMessages: [...state.gameMessages, data]
-      }));
-    });
-
-    socketManager.onMatchFound((data) => {
-      update(state => ({
-        ...state,
-        currentGame: data.gameSession,
-        matchmakingStatus: null
-      }));
-    });
-
-    socketManager.onMatchmakingJoined((data) => {
-      console.log('Joined matchmaking:', data.message);
-    });
-
-    socketManager.onMatchmakingLeft((data) => {
-      console.log('Left matchmaking:', data.message);
-      update(state => ({
-        ...state,
-        matchmakingStatus: null
-      }));
-    });
-
-    socketManager.onError((data) => {
-      update(state => ({
-        ...state,
-        error: data.message
-      }));
-    });
-
-    socketManager.onMatchmakingTimeout((data) => {
-      console.log('Matchmaking timeout:', data.message);
-      update(state => ({
-        ...state,
-        matchmakingStatus: null,
-        error: data.message
-      }));
-    });
-  }
-
-  // Initialize socket listeners
-  setupSocketListeners();
+  // Initialize socket listeners (delegated to realtime module)
+  setupGameSocketListeners({
+    update,
+    notifyGameUpdated: (gameCode: string) => socketManager.notifyGameUpdated(gameCode),
+    notify: notificationStore,
+    sound: soundManager
+  });
 
   return {
     subscribe,
