@@ -72,7 +72,7 @@ function collectCapturedAlong(state: CheckersGameState, from: Position, to: Posi
     }
 
     if (sq?.type !== null) {
-      if (sq.color === moverColor) return null; // blocked by own piece
+      if (sq && sq.color === moverColor) return null; // blocked by own piece
       // opponent piece
       seenOpponent++;
       captured.push({ row: r, col: c });
