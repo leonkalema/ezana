@@ -9,6 +9,7 @@ import type {
 } from '../types/index.js';
 import { apiClient } from '../utils/api.js';
 import { socketManager } from '../utils/socket.js';
+import { getValidMovesForPosition as computeValidMoves } from '../logic/checkers-moves.js';
 import { notificationStore } from './notification.js';
 import { soundManager } from '../utils/sound.js';
 
@@ -391,7 +392,7 @@ function createGameStore() {
           return {
             ...state,
             selectedSquare: position,
-            validMoves: getValidMovesForPosition(state.currentGame.game_state, position)
+            validMoves: computeValidMoves(state.currentGame.game_state, position)
           };
         }
 
@@ -508,116 +509,7 @@ function createGameStore() {
   };
 }
 
-// Helper function to get valid moves for a position
-function getValidMovesForPosition(gameState: any, position: Position): Position[] {
-  // Enhanced version supporting multiple captures and king long moves
-  const validMoves: Position[] = [];
-  const { board } = gameState;
-  const piece = board[position.row]?.[position.col];
-  
-  if (!piece?.type) return validMoves;
-
-  const directions = piece.type === 'king' 
-    ? [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-    : [[-1, -1], [-1, 1], [1, -1], [1, 1]]; // Allow all directions for captures
-
-  for (const direction of directions) {
-    const rowDir = direction[0];
-    const colDir = direction[1];
-    if (rowDir === undefined || colDir === undefined) continue;
-    
-    // For kings: check multiple distances
-    // For regular pieces: check single step moves and longer captures
-    const maxDistance = piece.type === 'king' ? 7 : 7;
-    
-    for (let distance = 1; distance <= maxDistance; distance++) {
-      const newRow = position.row + rowDir * distance;
-      const newCol = position.col + colDir * distance;
-      
-      if (newRow < 0 || newRow >= 8 || newCol < 0 || newCol >= 8) {
-        break; // Out of bounds
-      }
-
-      const targetSquare = board[newRow]?.[newCol];
-      if (!targetSquare) break;
-
-      // For regular pieces, only allow forward moves for distance 1 (non-capture)
-      if (piece.type === 'regular' && distance === 1) {
-        const isForwardDirection = piece.color === 'red' ? rowDir < 0 : rowDir > 0;
-        if (!isForwardDirection) {
-          continue; // Skip backward moves for regular pieces (unless capturing)
-        }
-      }
-
-      // Check if target square is empty
-      if (!targetSquare.type) {
-        // Check if this is a valid path (no own pieces blocking, valid captures)
-        if (isValidPath(board, position, { row: newRow, col: newCol }, piece.color, piece.type === 'king')) {
-          validMoves.push({ row: newRow, col: newCol });
-        }
-      }
-
-      // If we hit a piece, we can't continue in this direction for non-capture moves
-      if (targetSquare.type !== null) {
-        break;
-      }
-    }
-  }
-
-  return validMoves;
-}
-
-// Helper function to validate path for moves
-function isValidPath(board: any[][], from: Position, to: Position, playerColor: string, isKing: boolean): boolean {
-  const rowStep = to.row > from.row ? 1 : -1;
-  const colStep = to.col > from.col ? 1 : -1;
-  const distance = Math.abs(to.row - from.row);
-
-  // Special case for basic capture (distance 2) - matches backend logic
-  if (distance === 2) {
-    const middleRow = from.row + rowStep;
-    const middleCol = from.col + colStep;
-    const middlePiece = board[middleRow]?.[middleCol];
-    
-    // Must have opponent piece to jump over
-    if (!middlePiece?.type || middlePiece.color === playerColor) {
-      return false;
-    }
-    // Regular pieces can capture in any direction (including backwards)
-    return true;
-  }
-
-  let currentRow = from.row + rowStep;
-  let currentCol = from.col + colStep;
-  let captureCount = 0;
-
-  // Check each square along the path for longer moves
-  for (let i = 1; i < distance; i++) {
-    const square = board[currentRow]?.[currentCol];
-    
-    if (square?.type !== null) {
-      // There's a piece in the path
-      if (square?.color === playerColor) {
-        // Can't jump over own pieces
-        return false;
-      } else {
-        // Opponent piece - can capture it
-        captureCount++;
-      }
-    }
-    
-    currentRow += rowStep;
-    currentCol += colStep;
-  }
-
-  // If no captures, it's a regular move (only allowed for distance 1, or kings can move multiple squares)
-  if (captureCount === 0) {
-    return distance === 1 || isKing;
-  }
-
-  // If there are captures, the move is valid
-  return true;
-}
+// Move generation helpers moved to '../logic/checkers-moves.ts'
 
 // Helper function to get current store value
 function get<T>(store: { subscribe: (fn: (value: T) => void) => () => void }): T {
