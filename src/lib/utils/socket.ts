@@ -15,7 +15,7 @@ class SocketManager {
         return;
       }
 
-      this.socket = io('http://localhost:3001', {
+      this.socket = io('http://157.180.80.78:3001', {
         auth: { token },
         transports: ['websocket', 'polling'],
         timeout: 20000,
@@ -171,6 +171,11 @@ class SocketManager {
   onMatchmakingLeft(callback: (data: { message: string }) => void): void {
     if (!this.socket) return;
     this.socket.on('matchmaking_left', callback);
+  }
+
+  onMatchmakingTimeout(callback: (data: { message: string }) => void): void {
+    if (!this.socket) return;
+    this.socket.on('matchmaking_timeout', callback);
   }
 
   onError(callback: (data: { message: string }) => void): void {
