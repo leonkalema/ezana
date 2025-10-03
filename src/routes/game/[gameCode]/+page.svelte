@@ -10,23 +10,13 @@
   $: ({ isAuthenticated } = $authStore);
   $: ({ currentGame, playerRole, isLoading } = $gameStore);
   
-  let pollInterval: NodeJS.Timeout;
-  
   onMount(async () => {
     if (!isAuthenticated) goto('/login');
     if (!gameCode) goto('/dashboard');
     if (gameCode) await gameStore.loadGame(gameCode);
-    
-    // Set up real-time updates
-    pollInterval = setInterval(() => {
-      if (currentGame && currentGame.status === 'active' && gameCode) {
-        gameStore.loadGame(gameCode);
-      }
-    }, 2000);
   });
   
   onDestroy(() => {
-    if (pollInterval) clearInterval(pollInterval);
     gameStore.leaveGame();
   });
   

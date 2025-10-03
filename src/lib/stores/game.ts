@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, get as getStore } from 'svelte/store';
 import type { 
   GameSession, 
   CheckersMove, 
@@ -59,29 +59,22 @@ function createGameStore() {
     });
 
     socketManager.onMoveMade((data) => {
-      // The move has been processed, refresh game state
-      if (data.gameCode === get(gameStore).currentGame?.game_code) {
-        socketManager.notifyGameUpdated(data.gameCode);
-      }
+      // Clear selection after move - the gameStateUpdated event will handle the rest
+      update(state => ({
+        ...state,
+        selectedSquare: null,
+        validMoves: []
+      }));
     });
 
-    socketManager.onPlayerJoined(async (data) => {
+    socketManager.onPlayerJoined((data) => {
       console.log('Player joined:', data);
-      // Refresh game state when a player joins
-      if (data.gameCode === get(gameStore).currentGame?.game_code) {
-        try {
-          const response = await apiClient.getGame(data.gameCode);
-          update(state => ({
-            ...state,
-            currentGame: response.gameSession,
-            selectedSquare: null,
-            validMoves: []
-          }));
-        } catch (error) {
-          console.error('Failed to refresh game state:', error);
-          socketManager.notifyGameUpdated(data.gameCode);
-        }
-      }
+      // Just clear selection - gameStateUpdated will handle the game state
+      update(state => ({
+        ...state,
+        selectedSquare: null,
+        validMoves: []
+      }));
     });
 
     socketManager.onPlayerLeft((data) => {
