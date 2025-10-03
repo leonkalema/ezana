@@ -4,6 +4,14 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	server: {
+		host: '0.0.0.0'
+	},
+	preview: {
+		host: '0.0.0.0',
+		port: 5173,
+		allowedHosts: ['oddscaster.site']
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

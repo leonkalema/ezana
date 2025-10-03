@@ -10,6 +10,7 @@ export class SocketHandler {
   private io: SocketIOServer;
   private connectedUsers: Map<string, SocketUser> = new Map();
   private gameRooms: Map<string, GameRoom> = new Map();
+  private matchmakingTimeouts: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(server: HTTPServer) {
     // Use the same CORS configuration as the HTTP server
@@ -199,6 +200,9 @@ export class SocketHandler {
           playerRole: await GameSessionModel.getPlayerRole(user.id, gameCode)
         });
 
+        // Clear matchmaking timeout since player successfully joined
+        this.clearMatchmakingTimeout(gameCode);
+
         // Notify other players
         socket.to(roomName).emit('player_joined', {
           player: socketUser,
@@ -334,18 +338,21 @@ export class SocketHandler {
           // Create game and notify both players
           const gameSession = await GameSessionModel.create(opponent.user_id);
           const updatedGameSession = await GameSessionModel.joinGame(gameSession.game_code, user.id);
-          
+
           // Remove both from queue
           await MatchmakingModel.removeFromQueue(opponent.user_id);
-          
+
+          // Set timeout to verify both players join the game
+          this.setMatchmakingTimeout(gameSession.game_code, opponent.user_id, user.id);
+
           // Find opponent's socket
           const opponentSocket = Array.from(this.connectedUsers.entries())
             .find(([_, socketUser]) => socketUser.id === opponent.user_id);
-          
+
           if (opponentSocket) {
             const [opponentSocketId] = opponentSocket;
             const opponentSocketInstance = this.io.sockets.sockets.get(opponentSocketId);
-            
+
             if (opponentSocketInstance) {
               // Notify both players
               socket.emit('match_found', { gameSession: updatedGameSession });
@@ -417,5 +424,97 @@ export class SocketHandler {
 
   public getGameRooms(): Map<string, GameRoom> {
     return this.gameRooms;
+  }
+
+  private setMatchmakingTimeout(gameCode: string, player1Id: number, player2Id: number): void {
+    // Clear any existing timeout for this game
+    this.clearMatchmakingTimeout(gameCode);
+
+    // Set a 30-second timeout
+    const timeout = setTimeout(async () => {
+      await this.handleMatchmakingTimeout(gameCode, player1Id, player2Id);
+    }, 30000);
+
+    this.matchmakingTimeouts.set(gameCode, timeout);
+  }
+
+  private clearMatchmakingTimeout(gameCode: string): void {
+    const timeout = this.matchmakingTimeouts.get(gameCode);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.matchmakingTimeouts.delete(gameCode);
+    }
+  }
+
+  private async handleMatchmakingTimeout(gameCode: string, player1Id: number, player2Id: number): Promise<void> {
+    try {
+      // Check if both players are in the game room
+      const gameRoom = this.gameRooms.get(gameCode);
+      if (!gameRoom) {
+        // Game room doesn't exist, both players may have left
+        return;
+      }
+
+      const player1InRoom = gameRoom.players.some(p => p.id === player1Id);
+      const player2InRoom = gameRoom.players.some(p => p.id === player2Id);
+
+      // If both players are in the room, the game is fine
+      if (player1InRoom && player2InRoom) {
+        return;
+      }
+
+      // If one or both players are not in the room, abandon the game
+      // Use the model method directly (determine winner as the player who is still connected)
+      const gameSession = await GameSessionModel.findByGameCode(gameCode);
+      if (gameSession) {
+        // If player1 is still connected but player2 is not, player1 wins
+        // If player2 is still connected but player1 is not, player2 wins
+        // If both are disconnected, no winner
+        let winnerId = null;
+        if (player1InRoom && !player2InRoom) {
+          winnerId = player1Id;
+        } else if (player2InRoom && !player1InRoom) {
+          winnerId = player2Id;
+        }
+        await GameSessionModel.endGame(gameCode, winnerId, 'abandoned');
+      }
+
+      // Find the player who is still connected and return them to matchmaking
+      const connectedPlayers = Array.from(this.connectedUsers.values())
+        .filter(p => p.id === player1Id || p.id === player2Id);
+
+      for (const player of connectedPlayers) {
+        // Find their socket
+        const socketEntry = Array.from(this.connectedUsers.entries())
+          .find(([_, socketUser]) => socketUser.id === player.id);
+
+        if (socketEntry) {
+          const [socketId] = socketEntry;
+          const socketInstance = this.io.sockets.sockets.get(socketId);
+
+          if (socketInstance) {
+            // Return to matchmaking
+            await MatchmakingModel.addToQueue(player.id);
+            socketInstance.emit('matchmaking_timeout', {
+              message: 'Opponent didn\'t respond, returning to queue...'
+            });
+          }
+        }
+      }
+
+      // Clean up
+      this.gameRooms.delete(gameCode);
+      this.clearMatchmakingTimeout(gameCode);
+
+    } catch (error) {
+      console.error('Error handling matchmaking timeout:', error);
+    }
+  }
+
+  private clearAllMatchmakingTimeouts(): void {
+    for (const timeout of this.matchmakingTimeouts.values()) {
+      clearTimeout(timeout);
+    }
+    this.matchmakingTimeouts.clear();
   }
 }

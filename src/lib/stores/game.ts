@@ -125,6 +125,15 @@ function createGameStore() {
         error: data.message
       }));
     });
+
+    socketManager.onMatchmakingTimeout((data) => {
+      console.log('Matchmaking timeout:', data.message);
+      update(state => ({
+        ...state,
+        matchmakingStatus: null,
+        error: data.message
+      }));
+    });
   }
 
   // Initialize socket listeners
