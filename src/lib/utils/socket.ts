@@ -7,6 +7,28 @@ class SocketManager {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  // Buffer of listeners to ensure handlers are registered even before a socket exists
+  private pendingListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
+
+  private addListener(event: string, callback: (...args: any[]) => void): void {
+    // Always store for future (re)binding
+    const existing = this.pendingListeners.get(event) ?? [];
+    existing.push(callback);
+    this.pendingListeners.set(event, existing);
+    // If a socket exists, bind immediately as well
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
+  private bindAllPendingListeners(): void {
+    if (!this.socket) return;
+    for (const [event, callbacks] of this.pendingListeners.entries()) {
+      for (const cb of callbacks) {
+        this.socket.on(event, cb);
+      }
+    }
+  }
 
   connect(token: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -27,6 +49,8 @@ class SocketManager {
         console.log('Socket connected:', this.socket?.id);
         this.isConnected = true;
         this.reconnectAttempts = 0;
+        // Ensure any listeners registered before connection are bound now
+        this.bindAllPendingListeners();
         resolve();
       });
 
@@ -125,69 +149,70 @@ class SocketManager {
 
   // Event listeners
   onGameState(callback: (data: { gameSession: GameSession; playerRole: PlayerRole }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('game_state', callback);
+    this.addListener('game_state', callback);
   }
 
   onGameStateUpdated(callback: (data: { gameSession: GameSession }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('game_state_updated', callback);
+    this.addListener('game_state_updated', callback);
   }
 
   onMoveMade(callback: (data: { move: CheckersMove; playerId: number; playerRole: PlayerRole; gameCode: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('move_made', callback);
+    this.addListener('move_made', callback);
   }
 
   onPlayerJoined(callback: (data: { player: any; gameCode: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('player_joined', callback);
+    this.addListener('player_joined', callback);
   }
 
   onPlayerLeft(callback: (data: { playerId: number; gameCode: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('player_left', callback);
+    this.addListener('player_left', callback);
   }
 
   onPlayerDisconnected(callback: (data: { playerId: number; username: string; gameCode: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('player_disconnected', callback);
+    this.addListener('player_disconnected', callback);
   }
 
   onMessageReceived(callback: (data: GameMessage) => void): void {
-    if (!this.socket) return;
-    this.socket.on('message_received', callback);
+    this.addListener('message_received', callback);
   }
 
   onMatchFound(callback: (data: { gameSession: GameSession }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('match_found', callback);
+    this.addListener('match_found', callback);
   }
 
   onMatchmakingJoined(callback: (data: { message: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('matchmaking_joined', callback);
+    this.addListener('matchmaking_joined', callback);
   }
 
   onMatchmakingLeft(callback: (data: { message: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('matchmaking_left', callback);
+    this.addListener('matchmaking_left', callback);
   }
 
   onMatchmakingTimeout(callback: (data: { message: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('matchmaking_timeout', callback);
+    this.addListener('matchmaking_timeout', callback);
   }
 
   onError(callback: (data: { message: string }) => void): void {
-    if (!this.socket) return;
-    this.socket.on('error', callback);
+    this.addListener('error', callback);
   }
 
   // Remove event listeners
   off(event: string, callback?: (...args: any[]) => void): void {
-    if (!this.socket) return;
-    this.socket.off(event, callback);
+    // Remove from live socket
+    if (this.socket) {
+      this.socket.off(event, callback as any);
+    }
+    // Remove from buffer
+    const existing = this.pendingListeners.get(event);
+    if (!existing) return;
+    if (callback) {
+      this.pendingListeners.set(
+        event,
+        existing.filter((cb) => cb !== callback)
+      );
+    } else {
+      this.pendingListeners.delete(event);
+    }
   }
 
   // Utility methods
