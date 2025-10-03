@@ -59,22 +59,25 @@ function createGameStore() {
     });
 
     socketManager.onMoveMade((data) => {
-      // Clear selection after move - the gameStateUpdated event will handle the rest
+      // Clear selection after move and request a fresh game state broadcast
       update(state => ({
         ...state,
         selectedSquare: null,
         validMoves: []
       }));
+      // Ask server to emit the latest state so both players get turn changes immediately
+      socketManager.notifyGameUpdated(data.gameCode);
     });
 
     socketManager.onPlayerJoined((data) => {
       console.log('Player joined:', data);
-      // Just clear selection - gameStateUpdated will handle the game state
+      // Clear selection and request a state broadcast (useful when the second player arrives)
       update(state => ({
         ...state,
         selectedSquare: null,
         validMoves: []
       }));
+      socketManager.notifyGameUpdated(data.gameCode);
     });
 
     socketManager.onPlayerLeft((data) => {
