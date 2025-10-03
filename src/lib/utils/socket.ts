@@ -15,7 +15,8 @@ class SocketManager {
         return;
       }
 
-      this.socket = io('http://157.180.80.78:3001', {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      this.socket = io(origin, {
         auth: { token },
         transports: ['websocket', 'polling'],
         timeout: 20000,

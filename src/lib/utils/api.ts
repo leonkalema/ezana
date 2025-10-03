@@ -10,7 +10,7 @@ import type {
   ApiError 
 } from '../types/index.js';
 
-const API_BASE_URL = 'http://157.180.80.78:3001/api';
+const API_BASE_URL = '/api';
 
 class ApiClient {
   private getAuthHeaders(): HeadersInit {
