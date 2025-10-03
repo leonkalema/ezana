@@ -9,6 +9,8 @@ import type {
 } from '../types/index.js';
 import { apiClient } from '../utils/api.js';
 import { socketManager } from '../utils/socket.js';
+import { notificationStore } from './notification.js';
+import { soundManager } from '../utils/sound.js';
 
 interface GameState {
   currentGame: GameSession | null;
@@ -20,6 +22,7 @@ interface GameState {
   error: string | null;
   matchmakingStatus: MatchmakingStatus | null;
   activeGames: GameSession[];
+  lastTurn: 'player1' | 'player2' | null;
 }
 
 const initialState: GameState = {
@@ -31,7 +34,8 @@ const initialState: GameState = {
   isLoading: false,
   error: null,
   matchmakingStatus: null,
-  activeGames: []
+  activeGames: [],
+  lastTurn: null
 };
 
 function createGameStore() {
@@ -40,22 +44,90 @@ function createGameStore() {
   // Set up socket event listeners
   function setupSocketListeners(): void {
     socketManager.onGameState((data) => {
-      update(state => ({
-        ...state,
-        currentGame: data.gameSession,
-        playerRole: data.playerRole,
-        selectedSquare: null,
-        validMoves: []
-      }));
+      update(state => {
+        const newState = {
+          ...state,
+          currentGame: data.gameSession,
+          playerRole: data.playerRole,
+          selectedSquare: null,
+          validMoves: [],
+          lastTurn: data.gameSession.current_turn
+        };
+        
+        // Check if it's now the player's turn and show notification
+        if (state.lastTurn && state.lastTurn !== data.gameSession.current_turn && data.gameSession.status === 'active') {
+          const isMyTurn = (data.playerRole === 'player1' && data.gameSession.current_turn === 'player1') ||
+                          (data.playerRole === 'player2' && data.gameSession.current_turn === 'player2');
+          
+          if (isMyTurn) {
+            notificationStore.success('🎯 Your turn! Make your move', 4000);
+            soundManager.playTurnNotification();
+          } else {
+            notificationStore.info('⏳ Opponent made a move', 3000);
+            soundManager.playOpponentMove();
+          }
+        }
+
+        // Check for game end
+        if (data.gameSession.status === 'completed' && state.currentGame?.status !== 'completed') {
+          const currentUserId = JSON.parse(localStorage.getItem('user_data') || '{}').id as number | undefined;
+          const isWinner = data.gameSession.winner_id === currentUserId;
+          
+          if (isWinner) {
+            notificationStore.success('🏆 Congratulations! You won the game!', 6000);
+            soundManager.playGameEnd();
+            setTimeout(() => soundManager.playCelebration(), 1000);
+          } else {
+            notificationStore.info('🎮 Game ended. Great effort!', 5000);
+            soundManager.playGameLoss();
+          }
+        }
+        
+        return newState;
+      });
     });
 
     socketManager.onGameStateUpdated((data) => {
-      update(state => ({
-        ...state,
-        currentGame: data.gameSession,
-        selectedSquare: null,
-        validMoves: []
-      }));
+      update(state => {
+        const newState = {
+          ...state,
+          currentGame: data.gameSession,
+          selectedSquare: null,
+          validMoves: []
+        };
+        
+        // Check if turn changed and show notification
+        if (state.lastTurn && state.lastTurn !== data.gameSession.current_turn && data.gameSession.status === 'active') {
+          const isMyTurn = (state.playerRole === 'player1' && data.gameSession.current_turn === 'player1') ||
+                          (state.playerRole === 'player2' && data.gameSession.current_turn === 'player2');
+          
+          if (isMyTurn) {
+            notificationStore.success('🎯 Your turn! Make your move', 4000);
+            soundManager.playTurnNotification();
+          } else {
+            notificationStore.info('⏳ Opponent made a move', 3000);
+            soundManager.playOpponentMove();
+          }
+        }
+
+        // Check for game end
+        if (data.gameSession.status === 'completed' && state.currentGame?.status !== 'completed') {
+          const currentUserId = JSON.parse(localStorage.getItem('user_data') || '{}').id as number | undefined;
+          const isWinner = data.gameSession.winner_id === currentUserId;
+          
+          if (isWinner) {
+            notificationStore.success('🏆 Congratulations! You won the game!', 6000);
+            soundManager.playGameEnd();
+            setTimeout(() => soundManager.playCelebration(), 1000);
+          } else {
+            notificationStore.info('🎮 Game ended. Great effort!', 5000);
+            soundManager.playGameLoss();
+          }
+        }
+        
+        newState.lastTurn = data.gameSession.current_turn;
+        return newState;
+      });
     });
 
     socketManager.onMoveMade((data) => {
@@ -71,6 +143,8 @@ function createGameStore() {
 
     socketManager.onPlayerJoined((data) => {
       console.log('Player joined:', data);
+      notificationStore.success('🎮 Opponent joined! Game starting...', 4000);
+      soundManager.playGameStart();
       // Clear selection and request a state broadcast (useful when the second player arrives)
       update(state => ({
         ...state,
@@ -82,10 +156,12 @@ function createGameStore() {
 
     socketManager.onPlayerLeft((data) => {
       console.log('Player left:', data);
+      notificationStore.warning('👋 Opponent left the game', 4000);
     });
 
     socketManager.onPlayerDisconnected((data) => {
       console.log('Player disconnected:', data);
+      notificationStore.warning(`📡 ${data.username} disconnected`, 4000);
     });
 
     socketManager.onMessageReceived((data) => {
@@ -251,6 +327,10 @@ function createGameStore() {
           selectedSquare: null,
           validMoves: []
         }));
+
+        // Show success notification for successful move
+        notificationStore.success('✅ Move made successfully!', 2000);
+        soundManager.playMoveSuccess();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to make move';
         update(state => ({ ...state, error: errorMessage }));
@@ -430,44 +510,99 @@ function createGameStore() {
 
 // Helper function to get valid moves for a position
 function getValidMovesForPosition(gameState: any, position: Position): Position[] {
-  // This is a simplified version - in a real implementation, 
-  // you'd want to import the full game logic from the backend
+  // Enhanced version supporting multiple captures and king long moves
   const validMoves: Position[] = [];
   const { board } = gameState;
-  const piece = board[position.row][position.col];
+  const piece = board[position.row]?.[position.col];
   
-  if (!piece.type) return validMoves;
+  if (!piece?.type) return validMoves;
 
   const directions = piece.type === 'king' 
     ? [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-    : piece.color === 'red' 
-      ? [[-1, -1], [-1, 1]]
-      : [[1, -1], [1, 1]];
+    : [[-1, -1], [-1, 1], [1, -1], [1, 1]]; // Allow all directions for captures
 
-  for (const [rowDir, colDir] of directions) {
-    const newRow = position.row + rowDir;
-    const newCol = position.col + colDir;
+  for (const direction of directions) {
+    const rowDir = direction[0];
+    const colDir = direction[1];
+    if (rowDir === undefined || colDir === undefined) continue;
     
-    if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
-      const targetSquare = board[newRow][newCol];
-      if (!targetSquare.type) {
-        validMoves.push({ row: newRow, col: newCol });
-      } else if (targetSquare.color !== piece.color) {
-        // Check for jump
-        const jumpRow = position.row + rowDir * 2;
-        const jumpCol = position.col + colDir * 2;
-        
-        if (jumpRow >= 0 && jumpRow < 8 && jumpCol >= 0 && jumpCol < 8) {
-          const jumpSquare = board[jumpRow][jumpCol];
-          if (!jumpSquare.type) {
-            validMoves.push({ row: jumpRow, col: jumpCol });
-          }
+    // For kings: check multiple distances
+    // For regular pieces: check single step moves and longer captures
+    const maxDistance = piece.type === 'king' ? 7 : 7;
+    
+    for (let distance = 1; distance <= maxDistance; distance++) {
+      const newRow = position.row + rowDir * distance;
+      const newCol = position.col + colDir * distance;
+      
+      if (newRow < 0 || newRow >= 8 || newCol < 0 || newCol >= 8) {
+        break; // Out of bounds
+      }
+
+      const targetSquare = board[newRow]?.[newCol];
+      if (!targetSquare) break;
+
+      // For regular pieces, only allow forward moves for distance 1 (non-capture)
+      if (piece.type === 'regular' && distance === 1) {
+        const isForwardDirection = piece.color === 'red' ? rowDir < 0 : rowDir > 0;
+        if (!isForwardDirection) {
+          continue; // Skip backward moves for regular pieces (unless capturing)
         }
+      }
+
+      // Check if target square is empty
+      if (!targetSquare.type) {
+        // Check if this is a valid path (no own pieces blocking, valid captures)
+        if (isValidPath(board, position, { row: newRow, col: newCol }, piece.color, piece.type === 'king')) {
+          validMoves.push({ row: newRow, col: newCol });
+        }
+      }
+
+      // If we hit a piece, we can't continue in this direction for non-capture moves
+      if (targetSquare.type !== null) {
+        break;
       }
     }
   }
 
   return validMoves;
+}
+
+// Helper function to validate path for moves
+function isValidPath(board: any[][], from: Position, to: Position, playerColor: string, isKing: boolean): boolean {
+  const rowStep = to.row > from.row ? 1 : -1;
+  const colStep = to.col > from.col ? 1 : -1;
+  const distance = Math.abs(to.row - from.row);
+
+  let currentRow = from.row + rowStep;
+  let currentCol = from.col + colStep;
+  let captureCount = 0;
+
+  // Check each square along the path
+  for (let i = 1; i < distance; i++) {
+    const square = board[currentRow]?.[currentCol];
+    
+    if (square?.type !== null) {
+      // There's a piece in the path
+      if (square?.color === playerColor) {
+        // Can't jump over own pieces
+        return false;
+      } else {
+        // Opponent piece - can capture it
+        captureCount++;
+      }
+    }
+    
+    currentRow += rowStep;
+    currentCol += colStep;
+  }
+
+  // If no captures, it's a regular move (only allowed for distance 1, or kings can move multiple squares)
+  if (captureCount === 0) {
+    return distance === 1 || isKing;
+  }
+
+  // If there are captures, the move is valid
+  return true;
 }
 
 // Helper function to get current store value

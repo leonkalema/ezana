@@ -65,23 +65,39 @@
 
 <div class="flex flex-col items-center space-y-4">
   <!-- Game Status -->
-  <div class="text-center mb-2">
+  <div class="text-center mb-4">
     {#if currentGame}
-      <div class="flex items-center justify-center space-x-4 text-sm">
-        <div class="flex items-center space-x-2">
-          <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-          <span>Red: {currentGame.game_state.capturedPieces.black}</span>
+      <div class="flex items-center justify-center space-x-6 text-sm mb-3">
+        <div class="flex items-center space-x-2 {playerRole === 'player1' && isMyTurn ? 'bg-blue-100 px-3 py-1 rounded-full border-2 border-blue-400' : ''}">
+          <div class="w-4 h-4 bg-red-500 rounded-full {playerRole === 'player1' && isMyTurn ? 'animate-pulse' : ''}"></div>
+          <span class="font-medium">Red: {currentGame.game_state.capturedPieces.black}</span>
+          {#if playerRole === 'player1'}
+            <span class="text-xs text-blue-600 font-bold">(YOU)</span>
+          {/if}
         </div>
-        <div class="flex items-center space-x-2">
-          <div class="w-3 h-3 bg-gray-800 rounded-full"></div>
-          <span>Black: {currentGame.game_state.capturedPieces.red}</span>
+        <div class="text-gray-400 font-bold">VS</div>
+        <div class="flex items-center space-x-2 {playerRole === 'player2' && isMyTurn ? 'bg-blue-100 px-3 py-1 rounded-full border-2 border-blue-400' : ''}">
+          <div class="w-4 h-4 bg-gray-800 rounded-full {playerRole === 'player2' && isMyTurn ? 'animate-pulse' : ''}"></div>
+          <span class="font-medium">Black: {currentGame.game_state.capturedPieces.red}</span>
+          {#if playerRole === 'player2'}
+            <span class="text-xs text-blue-600 font-bold">(YOU)</span>
+          {/if}
         </div>
+      </div>
+      
+      <!-- Current Player Indicator -->
+      <div class="text-xs text-gray-600">
+        Current Player: 
+        <span class="font-semibold {currentPlayer === 'red' ? 'text-red-600' : 'text-gray-800'}">
+          {currentPlayer === 'red' ? 'Red' : 'Black'}
+          {isMyTurn ? ' (Your Turn)' : ' (Opponent\'s Turn)'}
+        </span>
       </div>
     {/if}
   </div>
   
   <!-- Checkers Board -->
-  <div class="border-4 border-amber-900 rounded-lg overflow-hidden shadow-lg">
+  <div class="border-4 rounded-lg overflow-hidden shadow-lg transition-all duration-300 {isMyTurn ? 'border-blue-500 shadow-blue-200 shadow-xl animate-pulse' : 'border-amber-900'}">
     <div class="grid grid-cols-8 gap-0">
       {#each Array(8) as _, row}
         {#each Array(8) as _, col}
@@ -113,12 +129,23 @@
   </div>
   
   <!-- Legend -->
-  <div class="text-xs text-gray-600 text-center max-w-md">
+  <div class="text-xs text-gray-600 text-center max-w-md bg-gray-50 p-3 rounded-lg">
+    <p class="font-medium mb-1">How to Play:</p>
     <p>Click on your pieces to select them, then click on a highlighted square to move.</p>
-    <p class="mt-1">
+    <div class="mt-2 flex items-center justify-center space-x-4">
+      <div class="flex items-center space-x-1">
+        <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+        <span>Valid moves</span>
+      </div>
+      <div class="flex items-center space-x-1">
+        <div class="w-2 h-2 bg-blue-400 rounded border"></div>
+        <span>Selected piece</span>
+      </div>
+    </div>
+    <p class="mt-2">
       You are playing as 
-      <span class="font-semibold">
-        {playerRole === 'player1' ? 'Red' : playerRole === 'player2' ? 'Black' : 'Spectator'}
+      <span class="font-semibold px-2 py-1 rounded {playerRole === 'player1' ? 'bg-red-100 text-red-700' : playerRole === 'player2' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-700'}">
+        {playerRole === 'player1' ? '🔴 Red' : playerRole === 'player2' ? '⚫ Black' : '👁️ Spectator'}
       </span>
     </p>
   </div>

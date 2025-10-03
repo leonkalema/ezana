@@ -5,6 +5,8 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import CheckersBoard from '$lib/components/game/checkers-board.svelte';
+  import GameEndModal from '$lib/components/game/game-end-modal.svelte';
+  import { soundManager } from '$lib/utils/sound.js';
   
   $: gameCode = $page.params.gameCode;
   $: ({ isAuthenticated } = $authStore);
@@ -21,12 +23,19 @@
   });
   
   let showCopied = false;
+  let soundEnabled = soundManager.isEnabled();
+  let showGameEndModal = false;
   
   function copyCode() {
     navigator.clipboard.writeText(gameCode || '').then(() => {
       showCopied = true;
       setTimeout(() => showCopied = false, 2000);
     });
+  }
+  
+  function toggleSound() {
+    soundEnabled = !soundEnabled;
+    soundManager.setEnabled(soundEnabled);
   }
   
   function isMyTurn() {
@@ -44,6 +53,38 @@
     } catch (e) {
       console.error('Failed to quit game', e);
     }
+  }
+
+  function isGameWinner(): boolean {
+    if (!currentGame || !currentGame.winner_id || !playerRole) return false;
+    const playerId = playerRole === 'player1' ? currentGame.player1_id : currentGame.player2_id;
+    return currentGame.winner_id === playerId;
+  }
+
+  function getWinnerColor(): 'red' | 'black' | null {
+    if (!currentGame || !currentGame.game_state.winner) return null;
+    return currentGame.game_state.winner;
+  }
+
+  function handlePlayAgain() {
+    showGameEndModal = false;
+    // Create a new game with the same code pattern
+    gameStore.createGame().then(() => {
+      // Optionally navigate to the new game
+    }).catch(console.error);
+  }
+
+  function handleBackToDashboard() {
+    showGameEndModal = false;
+    goto('/dashboard');
+  }
+
+  // Watch for game completion
+  $: if (currentGame?.status === 'completed' && !showGameEndModal) {
+    // Small delay to let the final move animation complete
+    setTimeout(() => {
+      showGameEndModal = true;
+    }, 1000);
   }
 </script>
 
@@ -67,6 +108,17 @@
         
         <div class="flex items-center gap-2">
           <button
+            on:click={toggleSound}
+            class="text-gray-600 hover:text-gray-900 p-1 rounded transition-colors"
+            title={soundEnabled ? 'Disable sounds' : 'Enable sounds'}
+          >
+            {#if soundEnabled}
+              🔊
+            {:else}
+              🔇
+            {/if}
+          </button>
+          <button
             on:click={copyCode}
             class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600 relative"
           >
@@ -85,16 +137,43 @@
     </div>
     
     <!-- Turn Indicator -->
-    <div class="bg-white border-b p-3 text-center">
+    <div class="bg-white border-b p-4 text-center">
       {#if currentGame.status === 'waiting'}
-        <p class="text-amber-600 font-semibold">Waiting for opponent...</p>
-        <p class="text-gray-500 text-sm">Share code <strong>{gameCode}</strong></p>
+        <div class="flex items-center justify-center space-x-2">
+          <div class="animate-pulse w-3 h-3 bg-amber-500 rounded-full"></div>
+          <p class="text-amber-600 font-semibold text-lg">Waiting for opponent...</p>
+          <div class="animate-pulse w-3 h-3 bg-amber-500 rounded-full"></div>
+        </div>
+        <p class="text-gray-500 text-sm mt-1">Share code <strong class="font-mono bg-gray-100 px-2 py-1 rounded">{gameCode}</strong></p>
       {:else if currentGame.status === 'completed'}
-        <p class="text-green-600 font-bold text-lg">🎉 Game Over!</p>
+        <div class="flex items-center justify-center space-x-2">
+          <span class="text-2xl">🎉</span>
+          <p class="text-green-600 font-bold text-xl">Game Over!</p>
+          <span class="text-2xl">🎉</span>
+        </div>
+        {#if currentGame.winner_id}
+          <p class="text-gray-600 text-sm mt-1">
+            {currentGame.winner_id === (playerRole === 'player1' ? currentGame.player1_id : currentGame.player2_id) ? 'You won!' : 'You lost!'}
+          </p>
+        {/if}
       {:else if isMyTurn()}
-        <p class="text-blue-600 font-bold">Your turn</p>
+        <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-3 mx-4 shadow-lg animate-pulse">
+          <div class="flex items-center justify-center space-x-3">
+            <div class="w-4 h-4 bg-white rounded-full animate-bounce"></div>
+            <p class="font-bold text-lg">🎯 YOUR TURN</p>
+            <div class="w-4 h-4 bg-white rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+          </div>
+          <p class="text-blue-100 text-sm mt-1">Make your move!</p>
+        </div>
       {:else}
-        <p class="text-gray-600">Opponent's turn</p>
+        <div class="bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg p-3 mx-4 shadow-lg">
+          <div class="flex items-center justify-center space-x-3">
+            <div class="w-3 h-3 bg-gray-300 rounded-full animate-pulse"></div>
+            <p class="font-bold text-lg">⏳ OPPONENT'S TURN</p>
+            <div class="w-3 h-3 bg-gray-300 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+          </div>
+          <p class="text-gray-200 text-sm mt-1">Waiting for opponent to move...</p>
+        </div>
       {/if}
     </div>
     
@@ -110,4 +189,14 @@
       {/if}
     </div>
   {/if}
+  
+  <!-- Game End Modal -->
+  <GameEndModal 
+    bind:isVisible={showGameEndModal}
+    isWinner={isGameWinner()}
+    {playerRole}
+    winnerColor={getWinnerColor()}
+    on:playAgain={handlePlayAgain}
+    on:backToDashboard={handleBackToDashboard}
+  />
 </div>

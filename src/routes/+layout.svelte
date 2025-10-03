@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import Navbar from '$lib/components/ui/navbar.svelte';
+	import NotificationContainer from '$lib/components/ui/notification-container.svelte';
 	import { onMount } from 'svelte';
 	import { authStore } from '$lib/stores/auth.js';
 
@@ -22,4 +23,5 @@
 	<main class="flex-1">
 		{@render children?.()}
 	</main>
+	<NotificationContainer />
 </div>

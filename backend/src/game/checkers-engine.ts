@@ -25,7 +25,7 @@ export class CheckersEngine {
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 8; col++) {
         if ((row + col) % 2 === 1) {
-          board[row][col] = { type: 'regular', color: 'black' };
+          board[row]![col] = { type: 'regular', color: 'black' };
         }
       }
     }
@@ -34,7 +34,7 @@ export class CheckersEngine {
     for (let row = 5; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
         if ((row + col) % 2 === 1) {
-          board[row][col] = { type: 'regular', color: 'red' };
+          board[row]![col] = { type: 'regular', color: 'red' };
         }
       }
     }
@@ -58,16 +58,16 @@ export class CheckersEngine {
       return false;
     }
 
-    const piece = board[from.row][from.col];
-    const targetSquare = board[to.row][to.col];
+    const piece = board[from.row]?.[from.col];
+    const targetSquare = board[to.row]?.[to.col];
 
     // Check if there's a piece at the from position and it belongs to the current player
-    if (!piece.type || piece.color !== playerColor) {
+    if (!piece?.type || piece.color !== playerColor) {
       return false;
     }
 
     // Check if target square is empty
-    if (targetSquare.type !== null) {
+    if (targetSquare?.type !== null) {
       return false;
     }
 
@@ -77,43 +77,76 @@ export class CheckersEngine {
     }
 
     const rowDiff = to.row - from.row;
-    const colDiff = Math.abs(to.col - from.col);
+    const colDiff = to.col - from.col;
 
-    // Regular move (one diagonal square)
-    if (Math.abs(rowDiff) === 1 && colDiff === 1) {
-      // Check direction for regular pieces
-      if (piece.type === 'regular') {
-        const correctDirection = playerColor === 'red' ? rowDiff < 0 : rowDiff > 0;
-        if (!correctDirection) {
-          return false;
-        }
-      }
-      return true;
+    // Must be diagonal move
+    if (Math.abs(rowDiff) !== Math.abs(colDiff)) {
+      return false;
     }
 
-    // Jump move (two diagonal squares)
-    if (Math.abs(rowDiff) === 2 && colDiff === 2) {
-      const middleRow = from.row + rowDiff / 2;
-      const middleCol = from.col + (to.col - from.col) / 2;
-      const middlePiece = board[middleRow][middleCol];
+    const distance = Math.abs(rowDiff);
 
-      // Check if there's an opponent piece to jump over
-      if (!middlePiece.type || middlePiece.color === playerColor) {
+    // For regular pieces: only allow forward direction for non-capture moves
+    if (piece.type === 'regular' && distance === 1) {
+      const correctDirection = playerColor === 'red' ? rowDiff < 0 : rowDiff > 0;
+      if (!correctDirection) {
         return false;
       }
-
-      // Check direction for regular pieces
-      if (piece.type === 'regular') {
-        const correctDirection = playerColor === 'red' ? rowDiff < 0 : rowDiff > 0;
-        if (!correctDirection) {
-          return false;
-        }
-      }
-
-      return true;
     }
 
-    return false;
+    // Check if path is clear and validate captures
+    return this.isValidPath(board, from, to, playerColor, piece.type === 'king');
+  }
+
+  private static isValidPath(board: CheckersPiece[][], from: Position, to: Position, playerColor: 'red' | 'black', isKing: boolean): boolean {
+    const rowStep = to.row > from.row ? 1 : -1;
+    const colStep = to.col > from.col ? 1 : -1;
+    const distance = Math.abs(to.row - from.row);
+
+    let currentRow = from.row + rowStep;
+    let currentCol = from.col + colStep;
+    let captureCount = 0;
+    let lastCaptureRow = -1;
+    let lastCaptureCol = -1;
+
+    // Check each square along the path
+    for (let i = 1; i < distance; i++) {
+      const square = board[currentRow]?.[currentCol];
+      
+      if (square?.type !== null) {
+        // There's a piece in the path
+        if (square?.color === playerColor) {
+          // Can't jump over own pieces
+          return false;
+        } else {
+          // Opponent piece - can capture it
+          captureCount++;
+          lastCaptureRow = currentRow;
+          lastCaptureCol = currentCol;
+          
+          // For kings: can have multiple captures with gaps
+          // For regular pieces: must be consecutive captures
+          if (!isKing && captureCount > 1) {
+            // Check if this capture is adjacent to the last one
+            const gapBetweenCaptures = Math.abs(currentRow - lastCaptureRow);
+            if (gapBetweenCaptures > 2) {
+              return false;
+            }
+          }
+        }
+      }
+      
+      currentRow += rowStep;
+      currentCol += colStep;
+    }
+
+    // If no captures, it's a regular move (only allowed for distance 1, or kings can move multiple squares)
+    if (captureCount === 0) {
+      return distance === 1 || isKing;
+    }
+
+    // If there are captures, the move is valid
+    return true;
   }
 
   static applyMove(gameState: CheckersGameState, move: CheckersMove): CheckersGameState {
@@ -121,36 +154,38 @@ export class CheckersEngine {
     const { board } = newGameState;
     const { from, to } = move;
 
-    const piece = board[from.row][from.col];
+    const piece = board[from.row]?.[from.col];
+    if (!piece) {
+      throw new Error('No piece at source position');
+    }
     
     // Move the piece
     board[to.row][to.col] = piece;
     board[from.row][from.col] = { type: null, color: null };
 
-    // Handle captures
-    const rowDiff = to.row - from.row;
-    const colDiff = to.col - from.col;
+    // Handle multiple captures along the path
+    const capturedPositions = this.getCapturedPieces(board, from, to);
+    move.capturedPieces = capturedPositions;
     
-    if (Math.abs(rowDiff) === 2 && Math.abs(colDiff) === 2) {
-      const middleRow = from.row + rowDiff / 2;
-      const middleCol = from.col + colDiff / 2;
-      const capturedPiece = board[middleRow][middleCol];
-      
-      // Remove captured piece
-      board[middleRow][middleCol] = { type: null, color: null };
-      
-      // Update captured pieces count
-      if (capturedPiece.color === 'red') {
-        newGameState.capturedPieces.red++;
-      } else {
-        newGameState.capturedPieces.black++;
+    // Remove all captured pieces and update count
+    for (const capturePos of capturedPositions) {
+      const capturedPiece = board[capturePos.row]?.[capturePos.col];
+      if (capturedPiece?.type) {
+        board[capturePos.row][capturePos.col] = { type: null, color: null };
+        
+        // Update captured pieces count
+        if (capturedPiece.color === 'red') {
+          newGameState.capturedPieces.red++;
+        } else {
+          newGameState.capturedPieces.black++;
+        }
       }
     }
 
     // Check for king promotion
     if (piece.type === 'regular') {
       if ((piece.color === 'red' && to.row === 0) || (piece.color === 'black' && to.row === 7)) {
-        board[to.row][to.col].type = 'king';
+        board[to.row][to.col]!.type = 'king';
         move.isKingMove = true;
       }
     }
@@ -166,6 +201,30 @@ export class CheckersEngine {
     this.checkGameEnd(newGameState);
 
     return newGameState;
+  }
+
+  private static getCapturedPieces(board: CheckersPiece[][], from: Position, to: Position): Position[] {
+    const capturedPositions: Position[] = [];
+    const rowStep = to.row > from.row ? 1 : -1;
+    const colStep = to.col > from.col ? 1 : -1;
+    const distance = Math.abs(to.row - from.row);
+
+    let currentRow = from.row + rowStep;
+    let currentCol = from.col + colStep;
+
+    // Check each square along the path for captures
+    for (let i = 1; i < distance; i++) {
+      const square = board[currentRow]?.[currentCol];
+      
+      if (square?.type) {
+        capturedPositions.push({ row: currentRow, col: currentCol });
+      }
+      
+      currentRow += rowStep;
+      currentCol += colStep;
+    }
+
+    return capturedPositions;
   }
 
   private static checkGameEnd(gameState: CheckersGameState): void {
@@ -251,36 +310,56 @@ export class CheckersEngine {
   static getValidMoves(gameState: CheckersGameState, position: Position): Position[] {
     const validMoves: Position[] = [];
     const { board } = gameState;
-    const piece = board[position.row][position.col];
+    const piece = board[position.row]?.[position.col];
     
-    if (!piece.type) return validMoves;
+    if (!piece?.type) return validMoves;
 
     const directions = piece.type === 'king' 
       ? [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-      : piece.color === 'red' 
-        ? [[-1, -1], [-1, 1]]
-        : [[1, -1], [1, 1]];
+      : [[-1, -1], [-1, 1], [1, -1], [1, 1]]; // Allow all directions for captures
 
-    for (const [rowDir, colDir] of directions) {
-      // Check regular move
-      const newRow = position.row + rowDir;
-      const newCol = position.col + colDir;
+    for (const direction of directions) {
+      const rowDir = direction[0];
+      const colDir = direction[1];
+      if (rowDir === undefined || colDir === undefined) continue;
       
-      if (this.isValidPosition({ row: newRow, col: newCol })) {
-        const targetSquare = board[newRow][newCol];
-        if (!targetSquare.type) {
-          validMoves.push({ row: newRow, col: newCol });
-        } else if (targetSquare.color !== piece.color) {
-          // Check jump move
-          const jumpRow = position.row + rowDir * 2;
-          const jumpCol = position.col + colDir * 2;
-          
-          if (this.isValidPosition({ row: jumpRow, col: jumpCol })) {
-            const jumpSquare = board[jumpRow][jumpCol];
-            if (!jumpSquare.type) {
-              validMoves.push({ row: jumpRow, col: jumpCol });
-            }
+      // For kings: check multiple distances
+      // For regular pieces: check single step moves and captures
+      const maxDistance = piece.type === 'king' ? 7 : 7; // Allow long moves for captures
+      
+      for (let distance = 1; distance <= maxDistance; distance++) {
+        const newRow = position.row + rowDir * distance;
+        const newCol = position.col + colDir * distance;
+        
+        if (!this.isValidPosition({ row: newRow, col: newCol })) {
+          break; // Out of bounds
+        }
+
+        const targetSquare = board[newRow]?.[newCol];
+        if (!targetSquare) break;
+
+        // For regular pieces, only allow forward moves for distance 1 (non-capture)
+        if (piece.type === 'regular' && distance === 1) {
+          const isForwardDirection = piece.color === 'red' ? rowDir < 0 : rowDir > 0;
+          if (!isForwardDirection) {
+            continue; // Skip backward moves for regular pieces (unless capturing)
           }
+        }
+
+        // Check if this move would be valid
+        const testMove: CheckersMove = {
+          from: position,
+          to: { row: newRow, col: newCol },
+          timestamp: new Date()
+        };
+
+        if (this.isValidMove(gameState, testMove, 0, piece.color === 'red')) {
+          validMoves.push({ row: newRow, col: newCol });
+        }
+
+        // If we hit a piece, we can't continue in this direction
+        if (targetSquare.type !== null) {
+          break;
         }
       }
     }
