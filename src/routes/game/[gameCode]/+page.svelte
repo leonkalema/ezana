@@ -10,18 +10,33 @@
   $: ({ isAuthenticated } = $authStore);
   $: ({ currentGame, playerRole, isLoading } = $gameStore);
   
+  let pollInterval: NodeJS.Timeout;
+  
   onMount(async () => {
     if (!isAuthenticated) goto('/login');
     if (!gameCode) goto('/dashboard');
-    await gameStore.loadGame(gameCode);
+    if (gameCode) await gameStore.loadGame(gameCode);
+    
+    // Set up real-time updates
+    pollInterval = setInterval(() => {
+      if (currentGame && currentGame.status === 'active' && gameCode) {
+        gameStore.loadGame(gameCode);
+      }
+    }, 2000);
   });
   
   onDestroy(() => {
+    if (pollInterval) clearInterval(pollInterval);
     gameStore.leaveGame();
   });
   
+  let showCopied = false;
+  
   function copyCode() {
-    navigator.clipboard.writeText(gameCode || '');
+    navigator.clipboard.writeText(gameCode || '').then(() => {
+      showCopied = true;
+      setTimeout(() => showCopied = false, 2000);
+    });
   }
   
   function isMyTurn() {
@@ -51,29 +66,29 @@
         
         <button
           on:click={copyCode}
-          class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600"
+          class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600 relative"
         >
-          Share
+          {showCopied ? 'Copied!' : 'Share'}
         </button>
       </div>
     </div>
     
     <!-- Turn Indicator -->
-    <div class="bg-white border-b p-4 text-center">
+    <div class="bg-white border-b p-3 text-center">
       {#if currentGame.status === 'waiting'}
-        <p class="text-amber-600 font-semibold text-lg">Waiting for opponent...</p>
-        <p class="text-gray-500 text-sm mt-1">Share code <strong>{gameCode}</strong> to start</p>
+        <p class="text-amber-600 font-semibold">Waiting for opponent...</p>
+        <p class="text-gray-500 text-sm">Share code <strong>{gameCode}</strong></p>
       {:else if currentGame.status === 'completed'}
-        <p class="text-green-600 font-bold text-xl">🎉 Game Over!</p>
+        <p class="text-green-600 font-bold text-lg">🎉 Game Over!</p>
       {:else if isMyTurn()}
-        <p class="text-blue-600 font-bold text-lg">Your turn</p>
+        <p class="text-blue-600 font-bold">Your turn</p>
       {:else}
-        <p class="text-gray-600 text-lg">Opponent's turn</p>
+        <p class="text-gray-600">Opponent's turn</p>
       {/if}
     </div>
     
     <!-- Board -->
-    <div class="flex-1 flex items-center justify-center p-4">
+    <div class="flex-1 flex items-start justify-center p-2 pt-4">
       {#if currentGame.status === 'waiting'}
         <div class="text-center">
           <div class="text-8xl mb-6">⏳</div>

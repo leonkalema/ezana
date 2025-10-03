@@ -63,29 +63,17 @@
 
 <div class="flex flex-col items-center space-y-4">
   <!-- Game Status -->
-  <div class="text-center">
+  <div class="text-center mb-2">
     {#if currentGame}
-      <div class="flex items-center space-x-4 text-sm">
+      <div class="flex items-center justify-center space-x-4 text-sm">
         <div class="flex items-center space-x-2">
-          <div class="w-4 h-4 bg-red-500 rounded-full"></div>
-          <span>Red: {currentGame.game_state.capturedPieces.black} captured</span>
+          <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+          <span>Red: {currentGame.game_state.capturedPieces.black}</span>
         </div>
         <div class="flex items-center space-x-2">
-          <div class="w-4 h-4 bg-gray-800 rounded-full"></div>
-          <span>Black: {currentGame.game_state.capturedPieces.red} captured</span>
+          <div class="w-3 h-3 bg-gray-800 rounded-full"></div>
+          <span>Black: {currentGame.game_state.capturedPieces.red}</span>
         </div>
-      </div>
-      
-      <div class="mt-2">
-        {#if currentGame.game_state.gameStatus === 'completed'}
-          <p class="text-lg font-semibold text-green-600">
-            Game Over! {currentGame.game_state.winner === 'red' ? 'Red' : 'Black'} wins!
-          </p>
-        {:else if isMyTurn}
-          <p class="text-lg font-semibold text-blue-600">Your turn</p>
-        {:else}
-          <p class="text-lg font-semibold text-gray-600">Opponent's turn</p>
-        {/if}
       </div>
     {/if}
   </div>
