@@ -10,7 +10,7 @@
   const dispatch = createEventDispatcher();
   
   let diceElement: HTMLDivElement;
-  let rollAnimation: number;
+  let rollAnimation: ReturnType<typeof setInterval>;
   
   // Dice face dot patterns
   const diceFaces = {
@@ -137,29 +137,20 @@
   
   .dice {
     position: relative;
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(145deg, #ffffff, #e6e6e6);
-    border: 3px solid #333;
-    border-radius: 12px;
+    width: 60px;
+    height: 60px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10%;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 
-      0 4px 8px rgba(0,0,0,0.2),
-      inset 0 1px 0 rgba(255,255,255,0.5);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: 0 0 40px -10px rgba(0,0,0,0.4);
     user-select: none;
   }
   
-  .dice:hover.can-roll {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 
-      0 6px 12px rgba(0,0,0,0.3),
-      inset 0 1px 0 rgba(255,255,255,0.5);
-  }
+  .dice:hover.can-roll { transform: translateY(-2px) scale(1.04); }
   
-  .dice:active.can-roll {
-    transform: translateY(0) scale(0.98);
-  }
+  .dice:active.can-roll { transform: translateY(0) scale(0.98); }
   
   .dice.disabled {
     opacity: 0.5;
@@ -171,67 +162,31 @@
     animation: shake 0.1s infinite;
   }
   
-  .dice-face {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border-radius: 8px;
-  }
+  .dice-face { position: relative; width: 100%; height: 100%; border-radius: 8px; }
   
   .dot {
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
     background: #333;
-    border-radius: 50%;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 0 0 0 rgba(0,0,0,0.0);
   }
   
   /* Player color themes */
-  .dice-red {
-    background: linear-gradient(145deg, #ff6b6b, #d43230);
-    border-color: #b71c1c;
-  }
+  .dice-red { background: #fff; border-color: #f0f0f0; }
+  .dice-red .dot { background: #ea4330; }
   
-  .dice-red .dot {
-    background: white;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  }
+  .dice-blue { background: #fff; border-color: #f0f0f0; }
+  .dice-blue .dot { background: #4285f4; }
   
-  .dice-blue {
-    background: linear-gradient(145deg, #4dabf7, #2073b5);
-    border-color: #1565c0;
-  }
+  .dice-yellow { background: #fff; border-color: #f0f0f0; }
+  .dice-yellow .dot { background: #fbbc05; }
   
-  .dice-blue .dot {
-    background: white;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  }
+  .dice-green { background: #fff; border-color: #f0f0f0; }
+  .dice-green .dot { background: #34a853; }
   
-  .dice-yellow {
-    background: linear-gradient(145deg, #ffd43b, #f6c500);
-    border-color: #f57f17;
-  }
-  
-  .dice-yellow .dot {
-    background: #333;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
-  }
-  
-  .dice-green {
-    background: linear-gradient(145deg, #51cf66, #239746);
-    border-color: #2e7d32;
-  }
-  
-  .dice-green .dot {
-    background: white;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  }
-  
-  .dice-default {
-    background: linear-gradient(145deg, #ffffff, #e6e6e6);
-    border-color: #333;
-  }
+  .dice-default { background: #fff; border-color: #e5e7eb; }
   
   /* Hints and indicators */
   .roll-hint {

@@ -295,3 +295,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Built with modern web technologies
 - Inspired by classic checkers gameplay
 - Designed for real-time multiplayer experience
+
+
+cd /path/to/ezana && \
+git pull && \
+npm install && npm run build && \
+cd backend && npm install && npm run build && \
+cd .. && \
+pm2 restart all
