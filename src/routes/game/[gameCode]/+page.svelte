@@ -48,19 +48,48 @@
   }
 
   function isGameWinner(): boolean {
-    if (!currentGame || !currentGame.winner_id || !playerRole) return false;
-    const playerId = playerRole === 'player1' ? currentGame.player1_id : currentGame.player2_id;
-    return currentGame.winner_id === playerId;
+    if (!currentGame || !playerRole) return false;
+    
+    // Get current user ID from auth store
+    const currentUserId = $authStore.user?.id;
+    if (!currentUserId) return false;
+    
+    // Check if current user is the winner
+    if (currentGame.winner_id) {
+      return currentGame.winner_id === currentUserId;
+    }
+    
+    // Fallback: check game_state winner
+    if (currentGame.game_state?.winner) {
+      const winnerIsPlayer1 = currentGame.game_state.winner === 'red';
+      const currentUserIsPlayer1 = playerRole === 'player1';
+      return winnerIsPlayer1 === currentUserIsPlayer1;
+    }
+    
+    return false;
   }
 
   function getWinnerColor(): 'red' | 'black' | null {
     if (!currentGame) return null;
+    
+    console.log('Getting winner color:', {
+      winner_id: currentGame.winner_id,
+      player1_id: currentGame.player1_id,
+      player2_id: currentGame.player2_id,
+      game_state_winner: currentGame.game_state?.winner,
+      status: currentGame.status
+    });
+    
     // Prefer authoritative winner_id from server
     if (currentGame.winner_id) {
       return currentGame.winner_id === currentGame.player1_id ? 'red' : 'black';
     }
+    
     // Fallback to engine-reported color in game_state
-    if (currentGame.game_state?.winner) return currentGame.game_state.winner;
+    if (currentGame.game_state?.winner) {
+      return currentGame.game_state.winner;
+    }
+    
     return null;
   }
 
@@ -71,7 +100,14 @@
 
   // On game completion, show modal and wait for user action
   $: if (currentGame?.status === 'completed' && !showGameEndModal) {
-    showGameEndModal = true;
+    console.log('Game completed, showing modal in 1 second...', {
+      winner_id: currentGame.winner_id,
+      game_state_winner: currentGame.game_state?.winner
+    });
+    // Add a small delay to ensure socket updates have arrived
+    setTimeout(() => {
+      showGameEndModal = true;
+    }, 1000);
   }
 </script>
 
@@ -123,15 +159,41 @@
       </div>
     </div>
     
-    <!-- Turn Indicator -->
-    <div class="bg-white border-b p-4 text-center">
-      {#if currentGame.status === 'waiting'}
-        <div class="flex items-center justify-center space-x-2">
-          <div class="animate-pulse w-3 h-3 bg-amber-500 rounded-full"></div>
-          <p class="text-amber-600 font-semibold text-lg">Waiting for opponent...</p>
-          <div class="animate-pulse w-3 h-3 bg-amber-500 rounded-full"></div>
+    <!-- Game Info & Turn Indicator -->
+    <div class="bg-white border-b p-4">
+      <!-- Stakes Info -->
+      {#if currentGame.stake_tokens && currentGame.stake_tokens > 0}
+        <div class="text-center mb-4 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+          <div class="flex items-center justify-center space-x-4 text-sm">
+            <div class="flex items-center space-x-1">
+              <span class="text-yellow-600">💰</span>
+              <span class="font-semibold text-gray-700">Stakes:</span>
+              <span class="font-bold text-yellow-700">{currentGame.stake_tokens.toLocaleString()} tokens each</span>
+            </div>
+            <div class="flex items-center space-x-1">
+              <span class="text-green-600">🏆</span>
+              <span class="font-semibold text-gray-700">Winner gets:</span>
+              <span class="font-bold text-green-700">{Math.floor(currentGame.stake_tokens * 2 * (1 - (currentGame.rake_bps || 1000) / 10000)).toLocaleString()} tokens</span>
+            </div>
+            {#if currentGame.escrow_status === 'held'}
+              <div class="flex items-center space-x-1">
+                <span class="text-blue-600">🔒</span>
+                <span class="text-blue-600 text-xs font-medium">Funds Secured</span>
+              </div>
+            {/if}
+          </div>
         </div>
-        <p class="text-gray-500 text-sm mt-1">Share code <strong class="font-mono bg-gray-100 px-2 py-1 rounded">{gameCode}</strong></p>
+      {/if}
+      
+      <!-- Turn Indicator -->
+      <div class="text-center">
+        {#if currentGame.status === 'waiting'}
+          <div class="flex items-center justify-center space-x-2">
+            <div class="animate-pulse w-3 h-3 bg-amber-500 rounded-full"></div>
+            <p class="text-amber-600 font-semibold text-lg">Waiting for opponent...</p>
+            <div class="animate-pulse w-3 h-3 bg-amber-500 rounded-full"></div>
+          </div>
+          <p class="text-gray-500 text-sm mt-1">Share code <strong class="font-mono bg-gray-100 px-2 py-1 rounded">{gameCode}</strong></p>
       {:else if currentGame.status === 'completed'}
         <div class="flex items-center justify-center space-x-2">
           <span class="text-2xl">🎉</span>
@@ -144,6 +206,7 @@
           </p>
         {/if}
       {/if}
+      </div>
     </div>
     
     <!-- Board -->
@@ -165,6 +228,7 @@
     isWinner={isGameWinner()}
     {playerRole}
     winnerColor={getWinnerColor()}
+    gameSession={currentGame}
     on:backToDashboard={handleBackToDashboard}
   />
 </div>

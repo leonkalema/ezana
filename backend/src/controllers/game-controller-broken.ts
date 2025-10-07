@@ -111,57 +111,6 @@ export class GameController {
       console.error('Join game error:', error);
       res.status(500).json({ error: 'Failed to join game' });
     }
-  }
-
-  static async setStake(
-    req: AuthenticatedRequest<{ gameCode: string }, {}, { stakeTokens: number; rakeBps?: number }>,
-    res: Response
-  ): Promise<void> {
-    try {
-      const userId = req.user?.id;
-      const { gameCode } = req.params;
-      const { stakeTokens, rakeBps } = req.body;
-
-      if (!userId) {
-        res.status(401).json({ error: 'User not authenticated' });
-        return;
-      }
-      if (!Number.isFinite(stakeTokens) || stakeTokens <= 0) {
-        res.status(400).json({ error: 'Invalid stake amount' });
-        return;
-      }
-
-      const session = await GameSessionModel.findByGameCode(gameCode);
-      if (!session) {
-        res.status(404).json({ error: 'Game not found' });
-        return;
-      }
-
-      if (session.player1_id !== userId && session.player2_id !== userId) {
-        res.status(403).json({ error: 'Not part of this game' });
-        return;
-      }
-
-      await GameSessionModel.setStakeConfig(gameCode, stakeTokens, rakeBps ?? 1000);
-
-      if (session.player1_id && session.player2_id) {
-        await EscrowService.holdForGame(gameCode);
-      }
-
-      const updated = await GameSessionModel.findByGameCode(gameCode);
-      res.json({ message: 'Stake configured', gameSession: updated });
-    } catch (error) {
-      console.error('Set stake error:', error);
-      res.status(500).json({ error: 'Failed to set stake' });
-    }
-  }
-
-  static async getGame(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      const userId = req.user?.id;
-      const { gameCode } = req.params;
-
-      if (!userId) {
         res.status(401).json({ error: 'User not authenticated' });
         return;
       }
@@ -172,7 +121,6 @@ export class GameController {
         return;
       }
 
-      // Check if user is part of this game
       const isPlayerInGame = await GameSessionModel.isPlayerInGame(userId, gameCode);
       if (!isPlayerInGame) {
         res.status(403).json({ error: 'You are not part of this game' });
@@ -337,19 +285,9 @@ export class GameController {
 
       // Check if game ended
       if (updatedState.gameStatus === 'completed') {
-        console.log('Game completed! Winner from engine:', updatedState.winner);
-        
-        let winnerId = null;
-        if (updatedState.winner === 'red') {
-          winnerId = gameSession.player1_id;
-          console.log('Red wins! Winner ID:', winnerId);
-        } else if (updatedState.winner === 'black') {
-          winnerId = gameSession.player2_id;
-          console.log('Black wins! Winner ID:', winnerId);
-        } else {
-          console.log('True draw - no winner');
-        }
-        
+        const winnerId = updatedState.winner === 'red' 
+          ? gameSession.player1_id 
+          : gameSession.player2_id;
         await GameSessionModel.endGame(gameCode, winnerId, 'completed');
         // Finalize escrow payouts/refunds
         await EscrowService.finalize(gameCode);

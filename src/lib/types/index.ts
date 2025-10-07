@@ -23,6 +23,9 @@ export interface GameSession {
   current_turn: 'player1' | 'player2';
   status: 'waiting' | 'active' | 'completed' | 'abandoned';
   winner_id: number | null;
+  stake_tokens?: number;
+  rake_bps?: number;
+  escrow_status?: 'none' | 'held' | 'finalized';
   created_at: Date;
   updated_at: Date;
   started_at: Date | null;

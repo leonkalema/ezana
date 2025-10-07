@@ -1,6 +1,8 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.js';
   import { gameStore } from '$lib/stores/game.js';
+  import WalletBalance from '$lib/components/ui/wallet-balance.svelte';
+  import WalletModal from '$lib/components/ui/wallet-modal.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   
@@ -8,6 +10,7 @@
   $: ({ currentGame } = $gameStore);
   
   let showUserMenu = false;
+  let showWalletModal = false;
   
   async function handleLogout() {
     await authStore.logout();
@@ -69,8 +72,10 @@
       </div>
       
       <!-- User Menu -->
-      <div class="flex items-center">
+      <div class="flex items-center space-x-4">
         {#if isAuthenticated && user}
+          <!-- Wallet Balance -->
+          <WalletBalance on:openWallet={() => showWalletModal = true} />
           <div class="relative">
             <button
               on:click={toggleUserMenu}
@@ -142,3 +147,6 @@
     on:keydown={(e) => e.key === 'Escape' && closeUserMenu()}
   ></div>
 {/if}
+
+<!-- Wallet Modal -->
+<WalletModal bind:isVisible={showWalletModal} on:close={() => showWalletModal = false} />

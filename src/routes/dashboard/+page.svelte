@@ -1,12 +1,17 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.js';
   import { gameStore } from '$lib/stores/game.js';
+  import { walletStore, walletService } from '$lib/stores/wallet.js';
+  import StakeSelector from '$lib/components/game/stake-selector.svelte';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   
   let gameCodeInput = '';
   let isCreating = false;
   let isJoining = false;
+  let showStakeModal = false;
+  let selectedStake = 0;
+  let pendingAction: 'create' | 'join' | null = null;
   
   $: ({ isAuthenticated } = $authStore);
   $: ({ activeGames, error, isLoading, currentGame } = $gameStore);
@@ -27,17 +32,43 @@
     await gameStore.loadActiveGames();
   });
   
+  function showStakeSelection(action: 'create' | 'join') {
+    pendingAction = action;
+    showStakeModal = true;
+  }
+
+  async function executeWithStake() {
+    if (!pendingAction) return;
+    
+    showStakeModal = false;
+    
+    if (pendingAction === 'create') {
+      await playNow();
+    } else if (pendingAction === 'join') {
+      await joinGame();
+    }
+    
+    pendingAction = null;
+  }
+
   async function playNow() {
     isCreating = true;
     try {
       await gameStore.joinMatchmaking();
-      // Don't set isCreating to false immediately - let polling handle it
-      // or if match found immediately, navigation will happen
+      
+      // If we have a current game and stakes are selected, set the stake
+      if ($gameStore.currentGame && selectedStake > 0) {
+        try {
+          await walletService.setGameStake($gameStore.currentGame.game_code, selectedStake);
+        } catch (error) {
+          console.error('Failed to set stake:', error);
+        }
+      }
+      
       if ($gameStore.currentGame && !$gameStore.isLoading) {
         goto(`/game/${$gameStore.currentGame.game_code}`);
         isCreating = false;
       }
-      // If still loading (in queue), keep showing "Searching..."
     } catch (error) {
       isCreating = false;
     }
@@ -48,6 +79,16 @@
     isJoining = true;
     try {
       await gameStore.joinGame(gameCodeInput.toUpperCase());
+      
+      // If we joined successfully and stakes are selected, set the stake
+      if ($gameStore.currentGame && selectedStake > 0) {
+        try {
+          await walletService.setGameStake($gameStore.currentGame.game_code, selectedStake);
+        } catch (error) {
+          console.error('Failed to set stake:', error);
+        }
+      }
+      
       if ($gameStore.currentGame) {
         goto(`/game/${$gameStore.currentGame.game_code}`);
       }
@@ -65,7 +106,7 @@
     </div>
     
     <button
-      on:click={playNow}
+      on:click={() => showStakeSelection('create')}
       disabled={isCreating}
       class="w-full bg-white text-blue-600 text-xl font-bold py-6 rounded-2xl shadow-2xl hover:shadow-3xl hover:scale-105 transition-all disabled:opacity-50"
     >
@@ -81,7 +122,7 @@
         maxlength="8"
       />
       <button
-        on:click={joinGame}
+        on:click={() => showStakeSelection('join')}
         disabled={!gameCodeInput.trim() || isJoining}
         class="w-full bg-white/20 text-white font-semibold py-4 rounded-xl hover:bg-white/30 transition-all disabled:opacity-30"
       >
@@ -111,3 +152,44 @@
     {/if}
   </div>
 </div>
+
+<!-- Stake Selection Modal -->
+{#if showStakeModal}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">
+          {pendingAction === 'create' ? 'Create Game' : 'Join Game'} - Select Stakes
+        </h2>
+        <button 
+          on:click={() => showStakeModal = false}
+          class="text-gray-400 hover:text-gray-600 text-2xl"
+        >
+          ×
+        </button>
+      </div>
+      
+      <StakeSelector 
+        bind:selectedStake 
+        userBalance={$walletStore.balance}
+        on:stakeSelected={(e) => selectedStake = e.detail.stake}
+      />
+      
+      <div class="flex space-x-4 mt-6">
+        <button
+          on:click={() => showStakeModal = false}
+          class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+        >
+          Cancel
+        </button>
+        <button
+          on:click={executeWithStake}
+          class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          disabled={selectedStake > 0 && $walletStore.balance < selectedStake}
+        >
+          {pendingAction === 'create' ? 'Create Game' : 'Join Game'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

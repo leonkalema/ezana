@@ -43,17 +43,22 @@ function createAuthStore() {
         socketManager.connect(token).catch(console.error);
       } catch (error) {
         console.error('Failed to parse stored user data:', error);
-        localStorage.removeItem('auth_token');
         localStorage.removeItem('user_data');
       }
     }
+  }
+
+
+  // Helper method to get current user
+  const getUser = () => {
+    const state = get({ subscribe });
+    return state.user;
   }
 
   // Helper method to get current token
   const getToken = () => {
     const state = get({ subscribe });
     return state.token;
-  };
 
   const register = async (username: string, email: string, password: string): Promise<void> => {
     update(state => ({ ...state, isLoading: true, error: null }));

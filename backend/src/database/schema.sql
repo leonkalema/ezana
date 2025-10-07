@@ -24,6 +24,9 @@ CREATE TABLE game_sessions (
     current_turn ENUM('player1', 'player2') DEFAULT 'player1',
     status ENUM('waiting', 'active', 'completed', 'abandoned') DEFAULT 'waiting',
     winner_id INT NULL,
+    stake_tokens BIGINT NULL,
+    rake_bps SMALLINT DEFAULT 1000,
+    escrow_status ENUM('none','held','released','refunded') DEFAULT 'none',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     started_at TIMESTAMP NULL,
@@ -62,3 +65,26 @@ CREATE INDEX idx_game_sessions_status ON game_sessions(status);
 CREATE INDEX idx_game_sessions_players ON game_sessions(player1_id, player2_id);
 CREATE INDEX idx_game_moves_session ON game_moves(game_session_id);
 CREATE INDEX idx_matchmaking_queue_created ON matchmaking_queue(created_at);
+
+-- Wallet: user balances
+CREATE TABLE user_balances (
+    user_id INT PRIMARY KEY,
+    balance_tokens BIGINT DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Wallet: immutable ledger
+CREATE TABLE ledger_transactions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NULL, -- null for house/binojo
+    kind ENUM('deposit','withdrawal','stake_hold','stake_refund','payout_win','rake') NOT NULL,
+    direction ENUM('credit','debit') NOT NULL,
+    amount_tokens BIGINT NOT NULL,
+    reference VARCHAR(64) NULL, -- e.g., game_code or payment id
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_ledger_user ON ledger_transactions(user_id, created_at);
+CREATE INDEX idx_ledger_ref ON ledger_transactions(reference);

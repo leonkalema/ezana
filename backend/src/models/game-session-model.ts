@@ -31,7 +31,8 @@ export class GameSessionModel {
   static async findById(id: number): Promise<GameSession | null> {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
-             winner_id, created_at, updated_at, started_at, ended_at
+             winner_id, stake_tokens, rake_bps, escrow_status,
+             created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE id = ?
     `;
@@ -55,7 +56,8 @@ export class GameSessionModel {
   static async findByGameCode(gameCode: string): Promise<GameSession | null> {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
-             winner_id, created_at, updated_at, started_at, ended_at
+             winner_id, stake_tokens, rake_bps, escrow_status,
+             created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE game_code = ?
     `;
@@ -113,10 +115,20 @@ export class GameSessionModel {
     await db.query(query, [winnerId, status, gameCode]);
   }
 
+  static async setStakeConfig(gameCode: string, stakeTokens: number, rakeBps: number = 1000): Promise<void> {
+    const query = `
+      UPDATE game_sessions
+      SET stake_tokens = ?, rake_bps = ?, escrow_status = IFNULL(escrow_status, 'none')
+      WHERE game_code = ?
+    `;
+    await db.query(query, [stakeTokens, rakeBps, gameCode]);
+  }
+
   static async findActiveGamesByPlayer(playerId: number): Promise<GameSession[]> {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
-             winner_id, created_at, updated_at, started_at, ended_at
+             winner_id, stake_tokens, rake_bps, escrow_status,
+             created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE (player1_id = ? OR player2_id = ?) AND status IN ('waiting', 'active')
       ORDER BY updated_at DESC
@@ -141,7 +153,8 @@ export class GameSessionModel {
   static async findWaitingGames(): Promise<GameSession[]> {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
-             winner_id, created_at, updated_at, started_at, ended_at
+             winner_id, stake_tokens, rake_bps, escrow_status,
+             created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE status = 'waiting' AND player2_id IS NULL
       ORDER BY created_at ASC
