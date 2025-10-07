@@ -271,37 +271,57 @@ export class CheckersEngine {
 
   private static checkGameEnd(gameState: CheckersGameState): void {
     const { board, currentPlayer } = gameState;
-    
-    // Count pieces and check for valid moves
+
+    // Count pieces and check for valid moves for both colors
     let redPieces = 0;
     let blackPieces = 0;
-    let hasValidMoves = false;
+    let redHasMoves = false;
+    let blackHasMoves = false;
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
         const piece = board[row][col];
         if (piece.type) {
-          if (piece.color === 'red') redPieces++;
-          if (piece.color === 'black') blackPieces++;
-
-          // Check if current player has valid moves
-          if (piece.color === currentPlayer && !hasValidMoves) {
-            hasValidMoves = this.hasValidMovesFromPosition(gameState, { row, col });
+          if (piece.color === 'red') {
+            redPieces++;
+            if (!redHasMoves) redHasMoves = this.hasValidMovesFromPosition(gameState, { row, col });
+          } else if (piece.color === 'black') {
+            blackPieces++;
+            if (!blackHasMoves) blackHasMoves = this.hasValidMovesFromPosition(gameState, { row, col });
           }
         }
       }
     }
 
-    // Game ends if no pieces left or no valid moves
+    // Win by elimination
     if (redPieces === 0) {
       gameState.gameStatus = 'completed';
       gameState.winner = 'black';
-    } else if (blackPieces === 0) {
+      return;
+    }
+    if (blackPieces === 0) {
       gameState.gameStatus = 'completed';
       gameState.winner = 'red';
-    } else if (!hasValidMoves) {
+      return;
+    }
+
+    // Draw if both sides have no legal moves (mutual blockade)
+    if (!redHasMoves && !blackHasMoves) {
       gameState.gameStatus = 'completed';
-      gameState.winner = currentPlayer === 'red' ? 'black' : 'red';
+      gameState.winner = null;
+      return;
+    }
+
+    // Otherwise, if current player has no moves, opponent wins (standard rule)
+    if (currentPlayer === 'red' && !redHasMoves) {
+      gameState.gameStatus = 'completed';
+      gameState.winner = 'black';
+      return;
+    }
+    if (currentPlayer === 'black' && !blackHasMoves) {
+      gameState.gameStatus = 'completed';
+      gameState.winner = 'red';
+      return;
     }
   }
 

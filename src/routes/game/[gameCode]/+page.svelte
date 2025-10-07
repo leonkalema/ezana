@@ -58,25 +58,17 @@
     return currentGame.game_state.winner;
   }
 
-  function handlePlayAgain() {
-    showGameEndModal = false;
-    // Create a new game with the same code pattern
-    gameStore.createGame().then(() => {
-      // Optionally navigate to the new game
-    }).catch(console.error);
-  }
-
   function handleBackToDashboard() {
     showGameEndModal = false;
     goto('/dashboard');
   }
 
-  // Watch for game completion
+  // On game completion, briefly show modal then redirect
   $: if (currentGame?.status === 'completed' && !showGameEndModal) {
-    // Small delay to let the final move animation complete
+    showGameEndModal = true;
     setTimeout(() => {
-      showGameEndModal = true;
-    }, 1000);
+      goto('/dashboard');
+    }, 1200);
   }
 </script>
 
@@ -170,7 +162,6 @@
     isWinner={isGameWinner()}
     {playerRole}
     winnerColor={getWinnerColor()}
-    on:playAgain={handlePlayAgain}
     on:backToDashboard={handleBackToDashboard}
   />
 </div>

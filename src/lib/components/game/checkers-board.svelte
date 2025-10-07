@@ -24,35 +24,17 @@
     return (row + col) % 2 === 1;
   }
   
-  function getPieceColor(piece: CheckersPiece): string {
-    if (!piece.type) return '';
-    return piece.color === 'red' ? 'bg-red-500' : 'bg-gray-800';
-  }
-  
-  function getPieceTextColor(piece: CheckersPiece): string {
-    if (!piece.type) return '';
-    return piece.color === 'red' ? 'text-white' : 'text-white';
+  function getPieceClasses(piece: CheckersPiece, row: number, col: number): string {
+    if (!piece?.type) return '';
+    const owner = piece.color === 'red' ? 'player1' : 'player2';
+    const isKing = piece.type === 'king' ? ' king' : '';
+    const selected = isSelected(row, col) ? ' selected' : '';
+    return `piece ${owner}${isKing}${selected}`;
   }
   
   function getSquareClasses(row: number, col: number): string {
     let classes = 'w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center relative cursor-pointer transition-all duration-200 ';
-    
-    if (isDarkSquare(row, col)) {
-      classes += 'bg-amber-800 ';
-      
-      if (isSelected(row, col)) {
-        classes += 'ring-4 ring-blue-400 ';
-      } else if (isValidMove(row, col)) {
-        classes += 'ring-2 ring-green-400 ';
-      }
-    } else {
-      classes += 'bg-amber-100 ';
-    }
-    
-    if (isMyTurn && isDarkSquare(row, col)) {
-      classes += 'hover:bg-amber-700 ';
-    }
-    
+    classes += isDarkSquare(row, col) ? 'square dark ' : 'square light ';
     return classes;
   }
 </script>
@@ -101,19 +83,12 @@
             disabled={!isMyTurn || currentGame?.game_state.gameStatus !== 'active'}
           >
             {#if board[row] && board[row][col] && board[row][col].type}
-              <div class={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-md ${getPieceColor(board[row][col])} ${getPieceTextColor(board[row][col])}`}>
-                {#if board[row][col].type === 'king'}
-                  <svg class="w-4 h-4 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732L14.146 12.8l-1.179 4.456a1 1 0 01-1.934 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732L9.854 7.2l1.179-4.456A1 1 0 0112 2z" clip-rule="evenodd" />
-                  </svg>
-                {/if}
-              </div>
+              <div class={getPieceClasses(board[row][col], row, col)}></div>
             {/if}
-            
-            <!-- Valid move indicator -->
+
             {#if isValidMove(row, col)}
               <div class="absolute inset-0 flex items-center justify-center">
-                <div class="w-3 h-3 bg-green-400 rounded-full opacity-75"></div>
+                <div class="move-indicator"></div>
               </div>
             {/if}
           </button>
@@ -128,11 +103,11 @@
     <p>Click on your pieces to select them, then click on a highlighted square to move.</p>
     <div class="mt-2 flex items-center justify-center space-x-4">
       <div class="flex items-center space-x-1">
-        <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+        <div class="w-2 h-2 rounded-full" style="background-color: var(--highlight-color);"></div>
         <span>Valid moves</span>
       </div>
       <div class="flex items-center space-x-1">
-        <div class="w-2 h-2 bg-blue-400 rounded border"></div>
+        <div class="w-2 h-2 rounded border" style="border-color: var(--highlight-color);"></div>
         <span>Selected piece</span>
       </div>
     </div>
@@ -144,3 +119,56 @@
     </p>
   </div>
 </div>
+
+<style>
+  :root {
+    --board-light: #f0d9b5;
+    --board-dark: #b58863;
+    --red-piece: #c41e3a;
+    --red-piece-king: #ff4d6d;
+    --black-piece: #1e1e1e;
+    --black-piece-king: #555555;
+    --highlight-color: #00ff87;
+  }
+
+  .square.light { background-color: var(--board-light); }
+  .square.dark { background-color: var(--board-dark); }
+
+  .piece {
+    width: 3rem; /* fallback, overridden by container sizing */
+    height: 3rem;
+    border-radius: 9999px;
+    box-shadow: inset 0 -4px 6px rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease;
+  }
+  .piece.player1 {
+    background: radial-gradient(circle at 50% 30%, var(--red-piece-king), var(--red-piece) 70%);
+  }
+  .piece.player2 {
+    background: radial-gradient(circle at 50% 30%, var(--black-piece-king), var(--black-piece) 70%);
+  }
+  .piece.selected {
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 0 20px var(--highlight-color);
+    outline: 3px solid var(--highlight-color);
+    outline-offset: 0;
+  }
+  .piece.king::after {
+    content: '👑';
+    font-size: 1.25rem;
+    line-height: 1;
+    color: gold;
+    text-shadow: 0 0 4px rgba(0,0,0,0.6);
+  }
+
+  .move-indicator {
+    width: 40%;
+    height: 40%;
+    background-color: var(--highlight-color);
+    opacity: 0.6;
+    border-radius: 9999px;
+    pointer-events: none;
+  }
+</style>
