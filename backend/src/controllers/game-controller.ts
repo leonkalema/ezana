@@ -181,6 +181,13 @@ export class GameController {
       // Determine if a multi-jump path was provided
       const isPlayer1 = playerRole === 'player1';
       const path = move.path && move.path.length >= 2 ? move.path : undefined;
+      const moveWithTimestamp = { ...move, timestamp: new Date() };
+
+      // Track captured counts before applying move
+      const prevCaptured = {
+        red: gameSession.game_state.capturedPieces.red,
+        black: gameSession.game_state.capturedPieces.black
+      };
 
       let updatedState;
       if (path) {
@@ -207,14 +214,81 @@ export class GameController {
         updatedState = CheckersEngine.applyMove(gameSession.game_state, moveWithTimestamp);
       }
 
-      const newCurrentTurn = playerRole === 'player1' ? 'player2' : 'player1';
+      // Determine if the move captured any piece(s)
+      const capturedDelta =
+        (updatedState.capturedPieces.red - prevCaptured.red) +
+        (updatedState.capturedPieces.black - prevCaptured.black);
+      const didCapture = capturedDelta > 0;
+
+      // Check if further captures are available from landing square
+      const landing = moveWithTimestamp.to;
+      const piece = updatedState.board[landing.row]?.[landing.col];
+      const playerColor: 'red' | 'black' = (playerRole === 'player1') ? 'red' : 'black';
+
+      function hasFurtherCapture(state: any, fromRow: number, fromCol: number, color: 'red' | 'black', isKing: boolean): boolean {
+        const inBounds = (r: number, c: number) => r >= 0 && r < 8 && c >= 0 && c < 8;
+        const dirs: Array<[number, number]> = isKing
+          ? [[-1,-1],[-1,1],[1,-1],[1,1]]
+          : [[-1,-1],[-1,1],[1,-1],[1,1]]; // allow capture in all diagonals
+        for (const [dr, dc] of dirs) {
+          // Regular capture: immediate opponent then empty landing one step beyond
+          const r1 = fromRow + dr;
+          const c1 = fromCol + dc;
+          const r2 = fromRow + 2*dr;
+          const c2 = fromCol + 2*dc;
+          if (inBounds(r2, c2)) {
+            const mid = state.board[r1]?.[c1];
+            const land = state.board[r2]?.[c2];
+            if (mid?.type && mid.color !== color && land?.type === null) {
+              return true;
+            }
+          }
+          if (isKing) {
+            // Flying capture for kings: scan until first non-empty, then require empty beyond
+            let rr = fromRow + dr;
+            let cc = fromCol + dc;
+            let foundOpponent = false;
+            while (inBounds(rr, cc)) {
+              const sq = state.board[rr]?.[cc];
+              if (sq?.type) {
+                if (sq.color === color) break; // blocked by own piece
+                // opponent found; next empty square is a capture landing
+                foundOpponent = true;
+                rr += dr;
+                cc += dc;
+                while (inBounds(rr, cc)) {
+                  const landSq = state.board[rr]?.[cc];
+                  if (landSq?.type === null) return true;
+                  if (landSq?.type) break;
+                  rr += dr; cc += dc;
+                }
+                break;
+              }
+              rr += dr; cc += dc;
+            }
+            if (foundOpponent) {
+              // already returned true if landing found; else continue other dirs
+            }
+          }
+        }
+        return false;
+      }
+
+      const shouldContinue = didCapture && piece?.type && hasFurtherCapture(updatedState, landing.row, landing.col, playerColor, piece.type === 'king');
+
+      // Keep server-side engine turn (currentPlayer) aligned for chained captures
+      if (shouldContinue) {
+        updatedState.currentPlayer = playerColor; // allow same player to continue jumping
+      }
+
+      const newCurrentTurn = shouldContinue ? playerRole : (playerRole === 'player1' ? 'player2' : 'player1');
 
       // Update game session
       await GameSessionModel.updateGameState(gameCode, updatedState, newCurrentTurn);
 
       // Save move to history (consolidated)
       const moveNumber = await GameMoveModel.getLastMoveNumber(gameSession.id) + 1;
-      const savedMove = { ...move, timestamp: new Date() } as any;
+      const savedMove = { ...moveWithTimestamp } as any;
       await GameMoveModel.create(gameSession.id, userId, savedMove, moveNumber);
 
       // Check if game ended
