@@ -54,8 +54,14 @@
   }
 
   function getWinnerColor(): 'red' | 'black' | null {
-    if (!currentGame || !currentGame.game_state.winner) return null;
-    return currentGame.game_state.winner;
+    if (!currentGame) return null;
+    // Prefer authoritative winner_id from server
+    if (currentGame.winner_id) {
+      return currentGame.winner_id === currentGame.player1_id ? 'red' : 'black';
+    }
+    // Fallback to engine-reported color in game_state
+    if (currentGame.game_state?.winner) return currentGame.game_state.winner;
+    return null;
   }
 
   function handleBackToDashboard() {
@@ -63,12 +69,9 @@
     goto('/dashboard');
   }
 
-  // On game completion, briefly show modal then redirect
+  // On game completion, show modal and wait for user action
   $: if (currentGame?.status === 'completed' && !showGameEndModal) {
     showGameEndModal = true;
-    setTimeout(() => {
-      goto('/dashboard');
-    }, 1200);
   }
 </script>
 

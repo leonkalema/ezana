@@ -74,7 +74,8 @@
   
   <!-- Checkers Board -->
   <div class="border-4 rounded-lg overflow-hidden shadow-lg transition-all duration-300 {isMyTurn ? 'border-blue-500 shadow-blue-200 shadow-xl animate-pulse' : 'border-amber-900'}">
-    <div class="grid grid-cols-8 gap-0">
+    <div class="board-viewport">
+      <div class="grid grid-cols-8 gap-0" class:rotated={playerRole === 'player2'}>
       {#each Array(8) as _, row}
         {#each Array(8) as _, col}
           <button
@@ -83,17 +84,18 @@
             disabled={!isMyTurn || currentGame?.game_state.gameStatus !== 'active'}
           >
             {#if board[row] && board[row][col] && board[row][col].type}
-              <div class={getPieceClasses(board[row][col], row, col)}></div>
+              <div class={getPieceClasses(board[row][col], row, col) + ' upright'}></div>
             {/if}
 
             {#if isValidMove(row, col)}
-              <div class="absolute inset-0 flex items-center justify-center">
+              <div class="absolute inset-0 flex items-center justify-center upright">
                 <div class="move-indicator"></div>
               </div>
             {/if}
           </button>
         {/each}
       {/each}
+      </div>
     </div>
   </div>
   
@@ -171,4 +173,9 @@
     border-radius: 9999px;
     pointer-events: none;
   }
+
+  .board-viewport { position: relative; }
+  .board-viewport .grid { transform-origin: center; }
+  .board-viewport .grid.rotated { transform: rotate(180deg); }
+  .upright { transform: rotate(180deg); transform-origin: center; }
 </style>
