@@ -9,7 +9,18 @@
   let isJoining = false;
   
   $: ({ isAuthenticated } = $authStore);
-  $: ({ activeGames, error } = $gameStore);
+  $: ({ activeGames, error, isLoading, currentGame } = $gameStore);
+  
+  // Handle navigation when match is found
+  $: if (currentGame && !isLoading && isCreating) {
+    goto(`/game/${currentGame.game_code}`);
+    isCreating = false;
+  }
+  
+  // Sync loading states
+  $: if (!isLoading && isCreating) {
+    isCreating = false;
+  }
   
   onMount(async () => {
     if (!isAuthenticated) goto('/login');
@@ -19,11 +30,15 @@
   async function playNow() {
     isCreating = true;
     try {
-      await gameStore.createGame();
-      if ($gameStore.currentGame) {
+      await gameStore.joinMatchmaking();
+      // Don't set isCreating to false immediately - let polling handle it
+      // or if match found immediately, navigation will happen
+      if ($gameStore.currentGame && !$gameStore.isLoading) {
         goto(`/game/${$gameStore.currentGame.game_code}`);
+        isCreating = false;
       }
-    } finally {
+      // If still loading (in queue), keep showing "Searching..."
+    } catch (error) {
       isCreating = false;
     }
   }
@@ -54,7 +69,7 @@
       disabled={isCreating}
       class="w-full bg-white text-blue-600 text-xl font-bold py-6 rounded-2xl shadow-2xl hover:shadow-3xl hover:scale-105 transition-all disabled:opacity-50"
     >
-      {isCreating ? 'Starting...' : 'Play Now'}
+      {isCreating ? 'Searching for opponent...' : 'Play Now'}
     </button>
     
     <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 space-y-4">

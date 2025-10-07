@@ -14,6 +14,7 @@ export interface GameSocketDeps {
     matchmakingStatus: any;
     activeGames: GameSession[];
     lastTurn: 'player1' | 'player2' | null;
+    isMyTurn: boolean;
   }>['update'];
   notifyGameUpdated: (gameCode: string) => void;
   notify: {
@@ -36,6 +37,10 @@ export function setupGameSocketListeners(deps: GameSocketDeps): void {
 
   socketManager.onGameState((data) => {
     update((state) => {
+      const isMyTurnNow =
+        (data.playerRole === 'player1' && data.gameSession.current_turn === 'player1') ||
+        (data.playerRole === 'player2' && data.gameSession.current_turn === 'player2');
+
       const newState = {
         ...state,
         currentGame: data.gameSession,
@@ -43,24 +48,8 @@ export function setupGameSocketListeners(deps: GameSocketDeps): void {
         selectedSquare: null,
         validMoves: [],
         lastTurn: data.gameSession.current_turn,
+        isMyTurn: isMyTurnNow,
       };
-
-      if (
-        state.lastTurn &&
-        state.lastTurn !== data.gameSession.current_turn &&
-        data.gameSession.status === 'active'
-      ) {
-        const isMyTurn =
-          (data.playerRole === 'player1' && data.gameSession.current_turn === 'player1') ||
-          (data.playerRole === 'player2' && data.gameSession.current_turn === 'player2');
-        if (isMyTurn) {
-          notify.success('🎯 Your turn! Make your move', 4000);
-          sound.playTurnNotification();
-        } else {
-          notify.info('⏳ Opponent made a move', 3000);
-          sound.playOpponentMove();
-        }
-      }
 
       if (data.gameSession.status === 'completed' && state.currentGame?.status !== 'completed') {
         const currentUserId = JSON.parse(localStorage.getItem('user_data') || '{}').id as number | undefined;
@@ -81,11 +70,16 @@ export function setupGameSocketListeners(deps: GameSocketDeps): void {
 
   socketManager.onGameStateUpdated((data) => {
     update((state) => {
+      const isMyTurnNow =
+        (state.playerRole === 'player1' && data.gameSession.current_turn === 'player1') ||
+        (state.playerRole === 'player2' && data.gameSession.current_turn === 'player2');
+
       const newState = {
         ...state,
         currentGame: data.gameSession,
         selectedSquare: null,
         validMoves: [],
+        isMyTurn: isMyTurnNow,
       };
 
       if (

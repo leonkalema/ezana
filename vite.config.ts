@@ -5,7 +5,19 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
-		host: '0.0.0.0'
+		host: '0.0.0.0',
+		proxy: {
+			'/api': {
+				target: 'http://localhost:3001',
+				changeOrigin: true
+			},
+			// Proxy Socket.IO websocket endpoint to backend
+			'/socket.io': {
+				target: 'http://localhost:3001',
+				ws: true,
+				changeOrigin: true
+			}
+		}
 	},
 	preview: {
 		host: '0.0.0.0',

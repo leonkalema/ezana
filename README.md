@@ -292,9 +292,19 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Built with modern web technologies
-- Inspired by classic checkers gameplay
-- Designed for real-time multiplayer experience
+M1: Types + Rules skeleton (p1, p3)
+M2: Turn manager + Dice service (p4, p5)
+M3: Store + UI wiring (p2, p9)
+M4: Persistence + Tests (p6, p10)
+M5: Multiplayer/AI (optional) (p7, p8)    
+
+Step 2: Implement finish-lane logic, win detection, and proper “enter finish” rules in 
+ludo-rules.ts
+.
+Step 3: Add a tiny turn manager (turn-manager.ts) so the page flows: Roll -> Select -> Move -> EndTurn (extra turn on six).
+Step 4: Replace mock state with a Svelte store; hook board clicks to store actions.
+Step 5: Add a tiny turn manager (turn-manager.ts) so the page flows: Roll -> Select -> Move -> EndTurn (extra turn on six).
+
 
 
 cd /path/to/ezana && \

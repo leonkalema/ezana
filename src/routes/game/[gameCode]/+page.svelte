@@ -37,14 +37,6 @@
     soundEnabled = !soundEnabled;
     soundManager.setEnabled(soundEnabled);
   }
-  
-  function isMyTurn() {
-    if (!currentGame || currentGame.status !== 'active') return false;
-    if (!playerRole) return false;
-    const current = currentGame.game_state.currentPlayer;
-    return (playerRole === 'player1' && current === 'red') ||
-           (playerRole === 'player2' && current === 'black');
-  }
 
   async function quitGame() {
     try {

@@ -2,15 +2,9 @@
   import { gameStore } from '$lib/stores/game.js';
   import type { Position, CheckersPiece } from '$lib/types/index.js';
   
-  $: ({ currentGame, playerRole, selectedSquare, validMoves } = $gameStore);
+  $: ({ currentGame, playerRole, selectedSquare, validMoves, isMyTurn } = $gameStore);
   $: board = currentGame?.game_state.board || [];
   $: currentPlayer = currentGame?.game_state.currentPlayer;
-  $: isMyTurn = Boolean(
-    currentGame && playerRole && (
-      (playerRole === 'player1' && currentPlayer === 'red') ||
-      (playerRole === 'player2' && currentPlayer === 'black')
-    )
-  );
   
   function handleSquareClick(row: number, col: number) {
     if (!currentGame || !isMyTurn) return;

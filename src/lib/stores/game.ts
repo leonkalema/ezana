@@ -25,6 +25,7 @@ interface GameState {
   matchmakingStatus: MatchmakingStatus | null;
   activeGames: GameSession[];
   lastTurn: 'player1' | 'player2' | null;
+  isMyTurn: boolean;
 }
 
 const initialState: GameState = {
@@ -37,7 +38,8 @@ const initialState: GameState = {
   error: null,
   matchmakingStatus: null,
   activeGames: [],
-  lastTurn: null
+  lastTurn: null,
+  isMyTurn: false
 };
 
 function createGameStore() {
@@ -51,8 +53,80 @@ function createGameStore() {
     sound: soundManager
   });
 
+  // Single polling timer for matchmaking status
+  let pollTimerId: ReturnType<typeof setInterval> | null = null;
+
   return {
     subscribe,
+
+    async joinMatchmaking(): Promise<void> {
+      update((state) => ({ ...state, isLoading: true, error: null }));
+      try {
+        const response = await apiClient.joinMatchmaking();
+        if (response.matched && response.gameSession) {
+          // Match found immediately
+          update((state) => ({
+            ...state,
+            currentGame: response.gameSession || null,
+            matchmakingStatus: null,
+            isLoading: false
+          }));
+        } else {
+          // Added to queue
+          update((state) => ({
+            ...state,
+            matchmakingStatus: { inQueue: true, queueEntry: undefined, queueSize: response.queueSize ?? 0 },
+            isLoading: true
+          }));
+          // Start polling only if not already active
+          if (!pollTimerId) {
+            gameStore.pollMatchmakingStatus();
+          }
+        }
+      } catch (error) {
+        update((state) => ({
+          ...state,
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to join matchmaking'
+        }));
+      }
+    },
+
+    async pollMatchmakingStatus(): Promise<void> {
+      if (pollTimerId) return; // Guard against multiple intervals
+      pollTimerId = setInterval(async () => {
+        try {
+          const status = await apiClient.getMatchmakingStatus();
+          if (!status.inQueue) {
+            // No longer in queue, stop polling and set game
+            if (pollTimerId) {
+              clearInterval(pollTimerId);
+              pollTimerId = null;
+            }
+            const active = await apiClient.getActiveGames();
+            const latestGame = active.activeGames[0] ?? null;
+            update((state) => ({
+              ...state,
+              currentGame: latestGame,
+              matchmakingStatus: null,
+              isLoading: false
+            }));
+            return;
+          }
+          // Still in queue – keep UI informed
+          update((state) => ({
+            ...state,
+            matchmakingStatus: { inQueue: true, queueEntry: status.queueEntry, queueSize: status.queueSize }
+          }));
+        } catch (error) {
+          if (pollTimerId) {
+            clearInterval(pollTimerId);
+            pollTimerId = null;
+          }
+          update((state) => ({ ...state, isLoading: false, error: 'Matchmaking failed' }));
+        }
+      }, 2000); // Poll every 2 seconds
+    },
 
     async createGame(gameCode?: string): Promise<void> {
       update(state => ({ ...state, isLoading: true, error: null }));
@@ -267,57 +341,17 @@ function createGameStore() {
       socketManager.sendMessage(currentState.currentGame.game_code, message);
     },
 
-    async joinMatchmaking(): Promise<void> {
-      update(state => ({ ...state, isLoading: true, error: null }));
-      
-      try {
-        const response = await apiClient.joinMatchmaking();
-        
-        if (response.matched && response.gameSession) {
-          update(state => ({
-            ...state,
-            currentGame: response.gameSession!,
-            playerRole: 'player2', // Joined player is always player2
-            isLoading: false,
-            matchmakingStatus: null
-          }));
-          
-          socketManager.joinGame(response.gameSession.game_code);
-        } else {
-          // Join matchmaking queue via socket
-          socketManager.joinMatchmaking();
-          
-          update(state => ({
-            ...state,
-            isLoading: false,
-            matchmakingStatus: {
-              inQueue: true,
-              queueSize: response.queueSize || 0
-            }
-          }));
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to join matchmaking';
-        update(state => ({ 
-          ...state, 
-          isLoading: false, 
-          error: errorMessage 
-        }));
-        throw error;
-      }
-    },
 
     async leaveMatchmaking(): Promise<void> {
       try {
         await apiClient.leaveMatchmaking();
         socketManager.leaveMatchmaking();
-        
-        update(state => ({
-          ...state,
-          matchmakingStatus: null
-        }));
-      } catch (error) {
-        console.error('Failed to leave matchmaking:', error);
+      } finally {
+        if (pollTimerId) {
+          clearInterval(pollTimerId);
+          pollTimerId = null;
+        }
+        update((state) => ({ ...state, matchmakingStatus: null, isLoading: false }));
       }
     },
 
