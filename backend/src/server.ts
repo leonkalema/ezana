@@ -60,13 +60,19 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting
+// Rate limiting - environment-based configuration
+const isProduction = process.env.NODE_ENV === 'production';
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: isProduction ? 120 : 1000, // Production: 120/min, Development: 1000/min
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Skip rate limiting for certain routes that need frequent access
+  skip: (req) => {
+    // Skip rate limiting for socket.io and static files
+    return req.path.includes('/socket.io') || req.path.includes('/static');
+  }
 });
 
 app.use('/api', limiter);
