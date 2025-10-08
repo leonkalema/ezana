@@ -1,5 +1,5 @@
-export const API_BASE_URL = 'http://localhost:3001/api';
-export const SOCKET_URL = 'http://localhost:3001';
+export const API_BASE_URL = 'https://oddscaster.site/api';
+export const SOCKET_URL = 'https://oddscaster.site';
 
 export const STAKE_TIERS = [
   { value: 0, label: 'No Stakes', description: 'Play for fun' },
