@@ -90,6 +90,7 @@ app.use(errorHandler);
 
 // Initialize Socket.IO
 const socketHandler = new SocketHandler(server);
+app.set('io', socketHandler.getIO());
 
 // Database connection and server startup
 async function startServer(): Promise<void> {

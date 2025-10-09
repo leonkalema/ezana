@@ -4,23 +4,23 @@ export declare const createUserSchema: z.ZodObject<{
     email: z.ZodString;
     password: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    password: string;
     username: string;
     email: string;
+    password: string;
 }, {
-    password: string;
     username: string;
     email: string;
+    password: string;
 }>;
 export declare const loginSchema: z.ZodObject<{
     username: z.ZodString;
     password: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    password: string;
     username: string;
+    password: string;
 }, {
-    password: string;
     username: string;
+    password: string;
 }>;
 export declare const createGameSchema: z.ZodObject<{
     gameCode: z.ZodOptional<z.ZodString>;
@@ -80,6 +80,16 @@ export declare const gameMoveSchema: z.ZodObject<{
             col: number;
         }>, "many">>;
         isKingMove: z.ZodOptional<z.ZodBoolean>;
+        path: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            row: z.ZodNumber;
+            col: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            row: number;
+            col: number;
+        }, {
+            row: number;
+            col: number;
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         from: {
             row: number;
@@ -94,6 +104,10 @@ export declare const gameMoveSchema: z.ZodObject<{
             col: number;
         }[] | undefined;
         isKingMove?: boolean | undefined;
+        path?: {
+            row: number;
+            col: number;
+        }[] | undefined;
     }, {
         from: {
             row: number;
@@ -108,6 +122,10 @@ export declare const gameMoveSchema: z.ZodObject<{
             col: number;
         }[] | undefined;
         isKingMove?: boolean | undefined;
+        path?: {
+            row: number;
+            col: number;
+        }[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     gameCode: string;
@@ -125,6 +143,10 @@ export declare const gameMoveSchema: z.ZodObject<{
             col: number;
         }[] | undefined;
         isKingMove?: boolean | undefined;
+        path?: {
+            row: number;
+            col: number;
+        }[] | undefined;
     };
 }, {
     gameCode: string;
@@ -142,6 +164,10 @@ export declare const gameMoveSchema: z.ZodObject<{
             col: number;
         }[] | undefined;
         isKingMove?: boolean | undefined;
+        path?: {
+            row: number;
+            col: number;
+        }[] | undefined;
     };
 }>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;

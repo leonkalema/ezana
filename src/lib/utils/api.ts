@@ -116,10 +116,11 @@ class ApiClient {
   }
 
   // Matchmaking endpoints
-  async joinMatchmaking(): Promise<{ gameSession?: GameSession; matched: boolean; queueSize?: number }> {
+  async joinMatchmaking(stakeTokens?: number): Promise<{ gameSession?: GameSession; matched: boolean; queueSize?: number }> {
     const response = await fetch(`${API_BASE_URL}/matchmaking/join`, {
       method: 'POST',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ stakeTokens })
     });
     return this.handleResponse<{ gameSession?: GameSession; matched: boolean; queueSize?: number }>(response);
   }

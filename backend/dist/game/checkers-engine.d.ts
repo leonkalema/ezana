@@ -3,7 +3,10 @@ export declare class CheckersEngine {
     static createInitialGameState(): CheckersGameState;
     private static createInitialBoard;
     static isValidMove(gameState: CheckersGameState, move: CheckersMove, playerId: number, isPlayer1: boolean): boolean;
+    private static pathHasCaptures;
+    private static isValidPath;
     static applyMove(gameState: CheckersGameState, move: CheckersMove): CheckersGameState;
+    private static getCapturedPieces;
     private static checkGameEnd;
     private static hasValidMovesFromPosition;
     private static isValidPosition;

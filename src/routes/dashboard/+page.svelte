@@ -54,22 +54,14 @@
   async function playNow() {
     isCreating = true;
     try {
-      await gameStore.joinMatchmaking();
-      
-      // If we have a current game and stakes are selected, set the stake
-      if ($gameStore.currentGame && selectedStake > 0) {
-        try {
-          await walletService.setGameStake($gameStore.currentGame.game_code, selectedStake);
-        } catch (error) {
-          console.error('Failed to set stake:', error);
-        }
-      }
+      await gameStore.joinMatchmaking(selectedStake);
       
       if ($gameStore.currentGame && !$gameStore.isLoading) {
         goto(`/game/${$gameStore.currentGame.game_code}`);
         isCreating = false;
       }
     } catch (error) {
+      console.error('Failed to join matchmaking:', error);
       isCreating = false;
     }
   }

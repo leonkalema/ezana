@@ -5,6 +5,7 @@ export declare class SocketHandler {
     private io;
     private connectedUsers;
     private gameRooms;
+    private matchmakingTimeouts;
     constructor(server: HTTPServer);
     private setupMiddleware;
     private setupEventHandlers;
@@ -15,5 +16,9 @@ export declare class SocketHandler {
     getIO(): SocketIOServer;
     getConnectedUsers(): Map<string, SocketUser>;
     getGameRooms(): Map<string, GameRoom>;
+    private setMatchmakingTimeout;
+    private clearMatchmakingTimeout;
+    private handleMatchmakingTimeout;
+    private clearAllMatchmakingTimeouts;
 }
 //# sourceMappingURL=socket-handler.d.ts.map

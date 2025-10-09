@@ -137,9 +137,9 @@ class SocketManager {
   }
 
   // Matchmaking
-  joinMatchmaking(): void {
+  joinMatchmaking(stakeTokens?: number): void {
     if (!this.socket) return;
-    this.socket.emit('join_matchmaking');
+    this.socket.emit('join_matchmaking', { stakeTokens });
   }
 
   leaveMatchmaking(): void {
@@ -190,6 +190,11 @@ class SocketManager {
 
   onMatchmakingTimeout(callback: (data: { message: string }) => void): void {
     this.addListener('matchmaking_timeout', callback);
+  }
+
+  // Wallet updates: when backend finalizes escrow and emits this event, refresh wallet balance
+  onWalletBalanceUpdated(callback: () => void | Promise<void>): void {
+    this.addListener('wallet_balance_updated', callback);
   }
 
   onError(callback: (data: { message: string }) => void): void {

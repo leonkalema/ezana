@@ -22,10 +22,18 @@ export class GameMoveModel {
         const result = await db.queryOne(query, [id]);
         if (!result)
             return null;
-        return {
-            ...result,
-            move_data: JSON.parse(result.move_data)
-        };
+        try {
+            return {
+                ...result,
+                move_data: typeof result.move_data === 'string'
+                    ? JSON.parse(result.move_data)
+                    : result.move_data
+            };
+        }
+        catch (error) {
+            console.error('Error parsing move_data JSON for findById:', result.move_data, error);
+            throw new Error('Invalid move data');
+        }
     }
     static async findByGameSession(gameSessionId) {
         const query = `
@@ -35,10 +43,20 @@ export class GameMoveModel {
       ORDER BY move_number ASC
     `;
         const results = await db.query(query, [gameSessionId]);
-        return results.map(result => ({
-            ...result,
-            move_data: JSON.parse(result.move_data)
-        }));
+        return results.map(result => {
+            try {
+                return {
+                    ...result,
+                    move_data: typeof result.move_data === 'string'
+                        ? JSON.parse(result.move_data)
+                        : result.move_data
+                };
+            }
+            catch (error) {
+                console.error('Error parsing move_data JSON for findByGameSession:', result.move_data, error);
+                throw new Error('Invalid move data');
+            }
+        });
     }
     static async getLastMoveNumber(gameSessionId) {
         const query = `
@@ -62,10 +80,20 @@ export class GameMoveModel {
             params.push(limit);
         }
         const results = await db.query(query, params);
-        return results.map(result => ({
-            ...result,
-            move_data: JSON.parse(result.move_data)
-        }));
+        return results.map(result => {
+            try {
+                return {
+                    ...result,
+                    move_data: typeof result.move_data === 'string'
+                        ? JSON.parse(result.move_data)
+                        : result.move_data
+                };
+            }
+            catch (error) {
+                console.error('Error parsing move_data JSON for getMoveHistory:', result.move_data, error);
+                throw new Error('Invalid move data');
+            }
+        });
     }
 }
 //# sourceMappingURL=game-move-model.js.map

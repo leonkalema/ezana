@@ -17,5 +17,6 @@ router.get('/active', GameController.getActiveGames);
 router.get('/:gameCode', validateParams(gameCodeParamSchema), GameController.getGame);
 router.post('/move', validateRequest(gameMoveSchema), GameController.makeMove);
 router.post('/:gameCode/abandon', validateParams(gameCodeParamSchema), GameController.abandonGame);
+router.post('/:gameCode/stake', validateParams(gameCodeParamSchema), GameController.setStake);
 export default router;
 //# sourceMappingURL=game-routes.js.map

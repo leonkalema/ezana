@@ -3,14 +3,33 @@ import { AuthUtils } from '../utils/auth.js';
 import { UserModel } from '../models/user-model.js';
 import { GameSessionModel } from '../models/game-session-model.js';
 import { MatchmakingModel } from '../models/matchmaking-model.js';
+import { EscrowService } from '../services/escrow/escrow-service.js';
 export class SocketHandler {
     io;
     connectedUsers = new Map();
     gameRooms = new Map();
+    matchmakingTimeouts = new Map();
     constructor(server) {
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'http://127.0.0.1:5173',
+            'http://127.0.0.1:51229',
+            process.env.FRONTEND_URL
+        ].filter(Boolean);
         this.io = new SocketIOServer(server, {
             cors: {
-                origin: process.env.FRONTEND_URL || "http://localhost:5173",
+                origin: (origin, callback) => {
+                    if (!origin)
+                        return callback(null, true);
+                    if (allowedOrigins.includes(origin)) {
+                        return callback(null, true);
+                    }
+                    if (process.env.NODE_ENV === 'development' &&
+                        (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+                        return callback(null, true);
+                    }
+                    return callback(new Error('Not allowed by CORS'));
+                },
                 methods: ["GET", "POST"],
                 credentials: true
             }
@@ -21,15 +40,20 @@ export class SocketHandler {
     setupMiddleware() {
         this.io.use(async (socket, next) => {
             try {
+                console.log('Socket authentication attempt from:', socket.handshake.address);
                 const token = socket.handshake.auth.token;
                 if (!token) {
+                    console.log('No token provided in socket handshake');
                     return next(new Error('Authentication token required'));
                 }
+                console.log('Verifying token for socket connection...');
                 const decoded = AuthUtils.verifyToken(token);
                 const user = await UserModel.findById(decoded.id);
                 if (!user) {
+                    console.log('User not found for token:', decoded.id);
                     return next(new Error('User not found'));
                 }
+                console.log('Socket authenticated for user:', user.username);
                 socket.data.user = {
                     id: user.id,
                     username: user.username,
@@ -126,6 +150,7 @@ export class SocketHandler {
                     gameSession,
                     playerRole: await GameSessionModel.getPlayerRole(user.id, gameCode)
                 });
+                this.clearMatchmakingTimeout(gameCode);
                 socket.to(roomName).emit('player_joined', {
                     player: socketUser,
                     gameCode
@@ -215,28 +240,39 @@ export class SocketHandler {
                 gameCode
             });
         });
-        socket.on('join_matchmaking', async () => {
+        socket.on('join_matchmaking', async (data = {}) => {
             try {
+                const stakeTokens = data.stakeTokens || 0;
                 await MatchmakingModel.removeFromQueue(user.id);
-                const opponent = await MatchmakingModel.getOldestQueuedPlayer(user.id);
+                const opponent = await MatchmakingModel.getOldestQueuedPlayer(user.id, stakeTokens);
                 if (opponent) {
                     const gameSession = await GameSessionModel.create(opponent.user_id);
                     const updatedGameSession = await GameSessionModel.joinGame(gameSession.game_code, user.id);
+                    if (stakeTokens > 0) {
+                        await GameSessionModel.setStakeConfig(gameSession.game_code, stakeTokens);
+                        await EscrowService.holdForGame(gameSession.game_code);
+                    }
                     await MatchmakingModel.removeFromQueue(opponent.user_id);
+                    this.setMatchmakingTimeout(gameSession.game_code, opponent.user_id, user.id);
                     const opponentSocket = Array.from(this.connectedUsers.entries())
                         .find(([_, socketUser]) => socketUser.id === opponent.user_id);
                     if (opponentSocket) {
                         const [opponentSocketId] = opponentSocket;
                         const opponentSocketInstance = this.io.sockets.sockets.get(opponentSocketId);
                         if (opponentSocketInstance) {
-                            socket.emit('match_found', { gameSession: updatedGameSession });
-                            opponentSocketInstance.emit('match_found', { gameSession: updatedGameSession });
+                            const finalGameSession = await GameSessionModel.findByGameCode(gameSession.game_code);
+                            socket.emit('match_found', { gameSession: finalGameSession });
+                            opponentSocketInstance.emit('match_found', { gameSession: finalGameSession });
                         }
                     }
                 }
                 else {
-                    await MatchmakingModel.addToQueue(user.id);
-                    socket.emit('matchmaking_joined', { message: 'Looking for opponent...' });
+                    await MatchmakingModel.addToQueue(user.id, stakeTokens);
+                    socket.emit('matchmaking_joined', {
+                        message: stakeTokens > 0
+                            ? `Looking for opponent with ${stakeTokens.toLocaleString()} token stakes...`
+                            : 'Looking for opponent...'
+                    });
                 }
             }
             catch (error) {
@@ -283,6 +319,71 @@ export class SocketHandler {
     }
     getGameRooms() {
         return this.gameRooms;
+    }
+    setMatchmakingTimeout(gameCode, player1Id, player2Id) {
+        this.clearMatchmakingTimeout(gameCode);
+        const timeout = setTimeout(async () => {
+            await this.handleMatchmakingTimeout(gameCode, player1Id, player2Id);
+        }, 30000);
+        this.matchmakingTimeouts.set(gameCode, timeout);
+    }
+    clearMatchmakingTimeout(gameCode) {
+        const timeout = this.matchmakingTimeouts.get(gameCode);
+        if (timeout) {
+            clearTimeout(timeout);
+            this.matchmakingTimeouts.delete(gameCode);
+        }
+    }
+    async handleMatchmakingTimeout(gameCode, player1Id, player2Id) {
+        try {
+            const gameRoom = this.gameRooms.get(gameCode);
+            if (!gameRoom) {
+                return;
+            }
+            const player1InRoom = gameRoom.players.some(p => p.id === player1Id);
+            const player2InRoom = gameRoom.players.some(p => p.id === player2Id);
+            if (player1InRoom && player2InRoom) {
+                return;
+            }
+            const gameSession = await GameSessionModel.findByGameCode(gameCode);
+            if (gameSession) {
+                let winnerId = null;
+                if (player1InRoom && !player2InRoom) {
+                    winnerId = player1Id;
+                }
+                else if (player2InRoom && !player1InRoom) {
+                    winnerId = player2Id;
+                }
+                await GameSessionModel.endGame(gameCode, winnerId, 'abandoned');
+            }
+            const connectedPlayers = Array.from(this.connectedUsers.values())
+                .filter(p => p.id === player1Id || p.id === player2Id);
+            for (const player of connectedPlayers) {
+                const socketEntry = Array.from(this.connectedUsers.entries())
+                    .find(([_, socketUser]) => socketUser.id === player.id);
+                if (socketEntry) {
+                    const [socketId] = socketEntry;
+                    const socketInstance = this.io.sockets.sockets.get(socketId);
+                    if (socketInstance) {
+                        await MatchmakingModel.addToQueue(player.id);
+                        socketInstance.emit('matchmaking_timeout', {
+                            message: 'Opponent didn\'t respond, returning to queue...'
+                        });
+                    }
+                }
+            }
+            this.gameRooms.delete(gameCode);
+            this.clearMatchmakingTimeout(gameCode);
+        }
+        catch (error) {
+            console.error('Error handling matchmaking timeout:', error);
+        }
+    }
+    clearAllMatchmakingTimeouts() {
+        for (const timeout of this.matchmakingTimeouts.values()) {
+            clearTimeout(timeout);
+        }
+        this.matchmakingTimeouts.clear();
     }
 }
 //# sourceMappingURL=socket-handler.js.map

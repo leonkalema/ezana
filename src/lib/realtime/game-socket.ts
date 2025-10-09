@@ -152,17 +152,18 @@ export function setupGameSocketListeners(deps: GameSocketDeps): void {
     console.log('Joined matchmaking:', data.message);
   });
 
-  socketManager.onMatchmakingLeft((data) => {
-    console.log('Left matchmaking:', data.message);
-    update((state) => ({ ...state, matchmakingStatus: null }));
-  });
-
   socketManager.onError((data) => {
-    update((state) => ({ ...state, error: data.message }));
+    console.error('Socket error:', data.message);
+    update((state) => ({ ...state, error: data.message, isLoading: false }));
   });
 
-  socketManager.onMatchmakingTimeout((data) => {
-    console.log('Matchmaking timeout:', data.message);
-    update((state) => ({ ...state, matchmakingStatus: null, error: data.message }));
+  // Wallet balance updates
+  socketManager.onWalletBalanceUpdated(async () => {
+    try {
+      const { walletService } = await import('$lib/stores/wallet.js');
+      await walletService.fetchBalance();
+    } catch (err) {
+      console.error('Failed to refresh wallet balance after update event:', err);
+    }
   });
-}
+};

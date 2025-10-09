@@ -17,14 +17,14 @@
     if (!gameCode) goto('/dashboard');
     if (gameCode) await gameStore.loadGame(gameCode);
   });
-  
   onDestroy(() => {
     gameStore.leaveGame();
   });
   
   let showCopied = false;
-  let soundEnabled = soundManager.isEnabled();
+  let soundEnabled = true;
   let showGameEndModal = false;
+  let showQuitConfirmModal = false;
   
   function copyCode() {
     navigator.clipboard.writeText(gameCode || '').then(() => {
@@ -38,13 +38,22 @@
     soundManager.setEnabled(soundEnabled);
   }
 
-  async function quitGame() {
+  function showQuitConfirm() {
+    showQuitConfirmModal = true;
+  }
+
+  async function confirmQuit() {
     try {
+      showQuitConfirmModal = false;
       await gameStore.abandonGame();
       goto('/dashboard');
     } catch (e) {
       console.error('Failed to quit game', e);
     }
+  }
+
+  function cancelQuit() {
+    showQuitConfirmModal = false;
   }
 
   function isGameWinner(): boolean {
@@ -98,17 +107,7 @@
     goto('/dashboard');
   }
 
-  // On game completion, show modal and wait for user action
-  $: if (currentGame?.status === 'completed' && !showGameEndModal) {
-    console.log('Game completed, showing modal in 1 second...', {
-      winner_id: currentGame.winner_id,
-      game_state_winner: currentGame.game_state?.winner
-    });
-    // Add a small delay to ensure socket updates have arrived
-    setTimeout(() => {
-      showGameEndModal = true;
-    }, 1000);
-  }
+  // Game completion handled by UI messages, no modal needed
 </script>
 
 <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex flex-col">
@@ -149,7 +148,7 @@
           </button>
           {#if currentGame && (currentGame.status === 'active' || currentGame.status === 'waiting')}
             <button
-              on:click={quitGame}
+              on:click={showQuitConfirm}
               class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600"
             >
               Quit
@@ -216,19 +215,114 @@
           <div class="text-8xl mb-6">⏳</div>
           <p class="text-gray-600 text-xl">Waiting for player 2</p>
         </div>
+      {:else if currentGame.status === 'completed' || currentGame.status === 'abandoned'}
+        <div class="text-center">
+          <div class="text-8xl mb-6">
+            {#if isGameWinner()}
+              🏆
+            {:else}
+              😔
+            {/if}
+          </div>
+          <h2 class="text-4xl font-bold mb-4 text-gray-800">
+            {#if isGameWinner()}
+              🎉 You Won! 🎉
+            {:else}
+              Game Over
+            {/if}
+          </h2>
+          <p class="text-xl text-gray-600 mb-6">
+            {#if currentGame.status === 'abandoned'}
+              {isGameWinner() ? 'Opponent quit - You win!' : 'You quit the game'}
+            {:else if currentGame.winner_id}
+              {isGameWinner() ? 'Congratulations!' : 'Better luck next time!'}
+            {:else}
+              It's a draw!
+            {/if}
+          </p>
+          
+          {#if currentGame.stake_tokens && currentGame.stake_tokens > 0}
+            <div class="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg p-4 mb-6 border border-yellow-200 max-w-md mx-auto">
+              {#if !currentGame.winner_id}
+                <!-- Draw - stakes refunded -->
+                <div class="flex items-center justify-center space-x-2 text-blue-600">
+                  <span>↩️</span>
+                  <span class="font-semibold">Stakes Refunded</span>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">
+                  {currentGame.stake_tokens.toLocaleString()} tokens returned to each player
+                </p>
+              {:else if isGameWinner()}
+                <!-- Winner gets payout -->
+                <div class="flex items-center justify-center space-x-2 text-green-600">
+                  <span>💰</span>
+                  <span class="font-semibold">You Won {Math.floor(currentGame.stake_tokens * 2 * (1 - (currentGame.rake_bps || 1000) / 10000)).toLocaleString()} Tokens!</span>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">
+                  From {(currentGame.stake_tokens * 2).toLocaleString()} total stakes (10% house fee)
+                </p>
+              {:else}
+                <!-- Loser loses stake -->
+                <div class="flex items-center justify-center space-x-2 text-red-600">
+                  <span>💸</span>
+                  <span class="font-semibold">You Lost {currentGame.stake_tokens.toLocaleString()} Tokens</span>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">
+                  Winner received {Math.floor(currentGame.stake_tokens * 2 * (1 - (currentGame.rake_bps || 1000) / 10000)).toLocaleString()} tokens
+                </p>
+              {/if}
+            </div>
+          {/if}
+          
+          <button
+            on:click={() => goto('/dashboard')}
+            class="px-8 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors text-lg"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       {:else}
         <CheckersBoard />
       {/if}
     </div>
   {/if}
   
-  <!-- Game End Modal -->
-  <GameEndModal 
-    bind:isVisible={showGameEndModal}
-    isWinner={isGameWinner()}
-    {playerRole}
-    winnerColor={getWinnerColor()}
-    gameSession={currentGame}
-    on:backToDashboard={handleBackToDashboard}
-  />
+  <!-- Quit Confirmation Modal -->
+  {#if showQuitConfirmModal}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 max-w-md mx-4">
+        <div class="text-center">
+          <div class="text-6xl mb-4">⚠️</div>
+          <h3 class="text-xl font-bold mb-4 text-gray-800">Quit Game?</h3>
+          <p class="text-gray-600 mb-2">Are you sure you want to quit?</p>
+          
+          {#if currentGame?.stake_tokens && currentGame.stake_tokens > 0}
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p class="text-red-700 font-semibold">⚠️ Warning:</p>
+              <p class="text-red-600 text-sm">
+                You will lose your stake of {currentGame.stake_tokens.toLocaleString()} tokens and your opponent will win automatically.
+              </p>
+            </div>
+          {:else}
+            <p class="text-gray-500 text-sm mb-4">Your opponent will win automatically.</p>
+          {/if}
+          
+          <div class="flex space-x-3">
+            <button
+              on:click={cancelQuit}
+              class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              on:click={confirmQuit}
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Quit Game
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

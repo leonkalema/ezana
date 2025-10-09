@@ -39,7 +39,8 @@ export const gameMoveSchema = z.object({
         from: positionSchema,
         to: positionSchema,
         capturedPieces: z.array(positionSchema).optional(),
-        isKingMove: z.boolean().optional()
+        isKingMove: z.boolean().optional(),
+        path: z.array(positionSchema).min(2).optional()
     })
 });
 //# sourceMappingURL=schemas.js.map

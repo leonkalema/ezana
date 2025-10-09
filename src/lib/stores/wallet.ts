@@ -30,7 +30,7 @@ export const walletStore = writable<WalletState>(initialState);
 
 class WalletService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
-    const token = authStore.getToken?.();
+    const token = authStore.getToken();
     if (!token) {
       throw new Error('Not authenticated');
     }
@@ -45,8 +45,10 @@ class WalletService {
     });
 
     if (!response.ok) {
+      const status = response.status;
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || 'Request failed');
+      const message = error.error || (status === 401 ? 'Wallet request unauthorized' : 'Request failed');
+      throw new Error(message);
     }
 
     return response.json();

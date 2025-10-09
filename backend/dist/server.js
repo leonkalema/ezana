@@ -23,18 +23,40 @@ app.use(helmet({
         },
     },
 }));
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:51229',
+    'https://oddscaster.site',
+    process.env.FRONTEND_URL
+].filter(Boolean);
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        if (process.env.NODE_ENV === 'development' &&
+            (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+            return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+const isProduction = process.env.NODE_ENV === 'production';
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: 1 * 60 * 1000,
+    max: isProduction ? 120 : 1000,
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    skip: (req) => {
+        return req.path.includes('/socket.io') || req.path.includes('/static');
+    }
 });
 app.use('/api', limiter);
 app.use(express.json({ limit: '10mb' }));
@@ -43,6 +65,7 @@ app.use('/api', routes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 const socketHandler = new SocketHandler(server);
+app.set('io', socketHandler.getIO());
 async function startServer() {
     try {
         const isDbConnected = await db.testConnection();

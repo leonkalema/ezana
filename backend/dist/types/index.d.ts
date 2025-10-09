@@ -31,6 +31,9 @@ export interface GameSession {
     current_turn: 'player1' | 'player2';
     status: 'waiting' | 'active' | 'completed' | 'abandoned';
     winner_id: number | null;
+    stake_tokens?: number | null;
+    rake_bps?: number | null;
+    escrow_status?: 'none' | 'held' | 'released' | 'refunded' | null;
     created_at: Date;
     updated_at: Date;
     started_at: Date | null;
@@ -64,6 +67,7 @@ export interface CheckersMove {
     to: Position;
     capturedPieces?: Position[];
     isKingMove?: boolean;
+    path?: Position[];
     timestamp: Date;
 }
 export interface Position {
@@ -93,6 +97,7 @@ export interface GameRoom {
 export interface MatchmakingQueue {
     id: number;
     user_id: number;
+    stake_tokens: number;
     created_at: Date;
 }
 export interface AuthenticatedRequest<P = any, ResBody = any, ReqBody = any, ReqQuery = any> extends Request<P, ResBody, ReqBody, ReqQuery> {

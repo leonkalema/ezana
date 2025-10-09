@@ -6,6 +6,7 @@ export declare class GameSessionModel {
     static joinGame(gameCode: string, player2Id: number): Promise<GameSession | null>;
     static updateGameState(gameCode: string, gameState: CheckersGameState, currentTurn: 'player1' | 'player2'): Promise<void>;
     static endGame(gameCode: string, winnerId: number | null, status: 'completed' | 'abandoned'): Promise<void>;
+    static setStakeConfig(gameCode: string, stakeTokens: number, rakeBps?: number): Promise<void>;
     static findActiveGamesByPlayer(playerId: number): Promise<GameSession[]>;
     static findWaitingGames(): Promise<GameSession[]>;
     static checkGameCodeExists(gameCode: string): Promise<boolean>;

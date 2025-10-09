@@ -2,14 +2,14 @@ import { db } from '../database/connection.js';
 import { MatchmakingQueue } from '../types/index.js';
 
 export class MatchmakingModel {
-  static async addToQueue(userId: number): Promise<void> {
+  static async addToQueue(userId: number, stakeTokens: number = 0): Promise<void> {
     const query = `
-      INSERT INTO matchmaking_queue (user_id)
-      VALUES (?)
-      ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP
+      INSERT INTO matchmaking_queue (user_id, stake_tokens)
+      VALUES (?, ?)
+      ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP, stake_tokens = VALUES(stake_tokens)
     `;
 
-    await db.query(query, [userId]);
+    await db.query(query, [userId, stakeTokens]);
   }
 
   static async removeFromQueue(userId: number): Promise<void> {
@@ -23,7 +23,7 @@ export class MatchmakingModel {
 
   static async findInQueue(userId: number): Promise<MatchmakingQueue | null> {
     const query = `
-      SELECT id, user_id, created_at
+      SELECT id, user_id, stake_tokens, created_at
       FROM matchmaking_queue
       WHERE user_id = ?
     `;
@@ -49,17 +49,27 @@ export class MatchmakingModel {
     return await db.query<MatchmakingQueue>(query, params);
   }
 
-  static async getOldestQueuedPlayer(excludeUserId?: number): Promise<MatchmakingQueue | null> {
+  static async getOldestQueuedPlayer(excludeUserId?: number, stakeTokens?: number): Promise<MatchmakingQueue | null> {
     let query = `
-      SELECT id, user_id, created_at
+      SELECT id, user_id, stake_tokens, created_at
       FROM matchmaking_queue
     `;
 
     const params: any[] = [];
+    const conditions: string[] = [];
 
     if (excludeUserId) {
-      query += ' WHERE user_id != ?';
+      conditions.push('user_id != ?');
       params.push(excludeUserId);
+    }
+
+    if (stakeTokens !== undefined) {
+      conditions.push('stake_tokens = ?');
+      params.push(stakeTokens);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     query += ' ORDER BY created_at ASC LIMIT 1';

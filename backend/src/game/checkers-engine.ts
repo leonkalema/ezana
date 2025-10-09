@@ -202,8 +202,8 @@ export class CheckersEngine {
     }
     
     // Move the piece
-    board[to.row][to.col] = piece;
-    board[from.row][from.col] = { type: null, color: null };
+    board[to.row]![to.col] = piece;
+    board[from.row]![from.col] = { type: null, color: null };
 
     // Handle multiple captures along the path
     const capturedPositions = this.getCapturedPieces(board, from, to);
@@ -212,8 +212,8 @@ export class CheckersEngine {
     // Remove all captured pieces and update count
     for (const capturePos of capturedPositions) {
       const capturedPiece = board[capturePos.row]?.[capturePos.col];
-      if (capturedPiece?.type) {
-        board[capturePos.row][capturePos.col] = { type: null, color: null };
+      if (capturedPiece?.type && board[capturePos.row]) {
+        board[capturePos.row]![capturePos.col] = { type: null, color: null };
         
         // Update captured pieces count
         if (capturedPiece.color === 'red') {
@@ -227,8 +227,10 @@ export class CheckersEngine {
     // Check for king promotion
     if (piece.type === 'regular') {
       if ((piece.color === 'red' && to.row === 0) || (piece.color === 'black' && to.row === 7)) {
-        board[to.row][to.col]!.type = 'king';
-        move.isKingMove = true;
+        if (board[to.row]?.[to.col]) {
+          board[to.row]![to.col]!.type = 'king';
+          move.isKingMove = true;
+        }
       }
     }
 
@@ -280,8 +282,8 @@ export class CheckersEngine {
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        const piece = board[row][col];
-        if (piece.type) {
+        const piece = board[row]?.[col];
+        if (piece?.type) {
           if (piece.color === 'red') {
             redPieces++;
             if (!redHasMoves) redHasMoves = this.hasValidMovesFromPosition(gameState, { row, col });
@@ -327,9 +329,9 @@ export class CheckersEngine {
 
   private static hasValidMovesFromPosition(gameState: CheckersGameState, position: Position): boolean {
     const { board } = gameState;
-    const piece = board[position.row][position.col];
+    const piece = board[position.row]?.[position.col];
     
-    if (!piece.type) return false;
+    if (!piece?.type) return false;
 
     // Check all possible moves from this position
     const directions = piece.type === 'king' 
@@ -339,13 +341,15 @@ export class CheckersEngine {
         : [[1, -1], [1, 1]];
 
     for (const [rowDir, colDir] of directions) {
+      if (rowDir === undefined || colDir === undefined) continue;
+      
       // Check regular move
       const newRow = position.row + rowDir;
       const newCol = position.col + colDir;
       
       if (this.isValidPosition({ row: newRow, col: newCol })) {
-        const targetSquare = board[newRow][newCol];
-        if (!targetSquare.type) {
+        const targetSquare = board[newRow]?.[newCol];
+        if (!targetSquare?.type) {
           return true; // Found a valid regular move
         }
         
@@ -354,8 +358,8 @@ export class CheckersEngine {
         const jumpCol = position.col + colDir * 2;
         
         if (this.isValidPosition({ row: jumpRow, col: jumpCol })) {
-          const jumpSquare = board[jumpRow][jumpCol];
-          if (!jumpSquare.type && targetSquare.color !== piece.color) {
+          const jumpSquare = board[jumpRow]?.[jumpCol];
+          if (!jumpSquare?.type && targetSquare.color !== piece.color) {
             return true; // Found a valid jump move
           }
         }

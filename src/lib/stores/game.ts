@@ -59,10 +59,10 @@ function createGameStore() {
   return {
     subscribe,
 
-    async joinMatchmaking(): Promise<void> {
+    async joinMatchmaking(stakeTokens?: number): Promise<void> {
       update((state) => ({ ...state, isLoading: true, error: null }));
       try {
-        const response = await apiClient.joinMatchmaking();
+        const response = await apiClient.joinMatchmaking(stakeTokens);
         if (response.matched && response.gameSession) {
           // Match found immediately
           update((state) => ({

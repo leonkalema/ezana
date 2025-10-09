@@ -1,12 +1,12 @@
 import { db } from '../database/connection.js';
 export class MatchmakingModel {
-    static async addToQueue(userId) {
+    static async addToQueue(userId, stakeTokens = 0) {
         const query = `
-      INSERT INTO matchmaking_queue (user_id)
-      VALUES (?)
-      ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP
+      INSERT INTO matchmaking_queue (user_id, stake_tokens)
+      VALUES (?, ?)
+      ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP, stake_tokens = VALUES(stake_tokens)
     `;
-        await db.query(query, [userId]);
+        await db.query(query, [userId, stakeTokens]);
     }
     static async removeFromQueue(userId) {
         const query = `
@@ -17,7 +17,7 @@ export class MatchmakingModel {
     }
     static async findInQueue(userId) {
         const query = `
-      SELECT id, user_id, created_at
+      SELECT id, user_id, stake_tokens, created_at
       FROM matchmaking_queue
       WHERE user_id = ?
     `;
@@ -36,15 +36,23 @@ export class MatchmakingModel {
         query += ' ORDER BY created_at ASC';
         return await db.query(query, params);
     }
-    static async getOldestQueuedPlayer(excludeUserId) {
+    static async getOldestQueuedPlayer(excludeUserId, stakeTokens) {
         let query = `
-      SELECT id, user_id, created_at
+      SELECT id, user_id, stake_tokens, created_at
       FROM matchmaking_queue
     `;
         const params = [];
+        const conditions = [];
         if (excludeUserId) {
-            query += ' WHERE user_id != ?';
+            conditions.push('user_id != ?');
             params.push(excludeUserId);
+        }
+        if (stakeTokens !== undefined) {
+            conditions.push('stake_tokens = ?');
+            params.push(stakeTokens);
+        }
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
         }
         query += ' ORDER BY created_at ASC LIMIT 1';
         return await db.queryOne(query, params);

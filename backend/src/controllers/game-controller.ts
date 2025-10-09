@@ -417,6 +417,23 @@ export class GameController {
       await GameSessionModel.endGame(gameCode, winnerId, 'abandoned');
       await EscrowService.finalize(gameCode);
 
+      // Get updated game session and notify all players via socket
+      const updatedGameSession = await GameSessionModel.findByGameCode(gameCode);
+      if (updatedGameSession) {
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`game:${gameCode}`).emit('game_state_updated', {
+            gameSession: updatedGameSession
+          });
+          // Notify clients in room to refresh wallet balances (payout/refund done)
+          io.to(`game:${gameCode}`).emit('wallet_balance_updated', {
+            gameCode,
+            winnerId: updatedGameSession.winner_id ?? null,
+            stakeTokens: updatedGameSession.stake_tokens ?? 0
+          });
+        }
+      }
+
       res.json({ message: 'Game abandoned successfully' });
     } catch (error) {
       console.error('Abandon game error:', error);

@@ -101,6 +101,8 @@ export function applyMovePath(stateIn: CheckersGameState, path: Position[], move
   if (!path || path.length < 2) return null;
   const state = cloneState(stateIn);
   const from = path[0];
+  if (!from) return null;
+  
   const pieceType = typeAt(state, from);
   const moverColor = moverIsPlayer1 ? 'red' : 'black';
   if (!pieceType) return null;

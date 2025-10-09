@@ -4,6 +4,7 @@ import { AuthUtils } from '../utils/auth.js';
 import { UserModel } from '../models/user-model.js';
 import { GameSessionModel } from '../models/game-session-model.js';
 import { MatchmakingModel } from '../models/matchmaking-model.js';
+import { EscrowService } from '../services/escrow/escrow-service.js';
 import { SocketUser, GameRoom } from '../types/index.js';
 
 export class SocketHandler {
@@ -326,18 +327,26 @@ export class SocketHandler {
     });
 
     // Handle matchmaking events
-    socket.on('join_matchmaking', async () => {
+    socket.on('join_matchmaking', async (data: { stakeTokens?: number } = {}) => {
       try {
+        const stakeTokens = data.stakeTokens || 0;
+        
         // Remove from queue first (in case already in queue)
         await MatchmakingModel.removeFromQueue(user.id);
         
-        // Try to find a match
-        const opponent = await MatchmakingModel.getOldestQueuedPlayer(user.id);
+        // Try to find a match with same stake amount
+        const opponent = await MatchmakingModel.getOldestQueuedPlayer(user.id, stakeTokens);
         
         if (opponent) {
           // Create game and notify both players
           const gameSession = await GameSessionModel.create(opponent.user_id);
           const updatedGameSession = await GameSessionModel.joinGame(gameSession.game_code, user.id);
+
+          // Set stakes for the game if specified and hold escrow immediately
+          if (stakeTokens > 0) {
+            await GameSessionModel.setStakeConfig(gameSession.game_code, stakeTokens);
+            await EscrowService.holdForGame(gameSession.game_code);
+          }
 
           // Remove both from queue
           await MatchmakingModel.removeFromQueue(opponent.user_id);
@@ -354,15 +363,22 @@ export class SocketHandler {
             const opponentSocketInstance = this.io.sockets.sockets.get(opponentSocketId);
 
             if (opponentSocketInstance) {
+              // Get updated game session with stakes
+              const finalGameSession = await GameSessionModel.findByGameCode(gameSession.game_code);
+              
               // Notify both players
-              socket.emit('match_found', { gameSession: updatedGameSession });
-              opponentSocketInstance.emit('match_found', { gameSession: updatedGameSession });
+              socket.emit('match_found', { gameSession: finalGameSession });
+              opponentSocketInstance.emit('match_found', { gameSession: finalGameSession });
             }
           }
         } else {
-          // Add to queue
-          await MatchmakingModel.addToQueue(user.id);
-          socket.emit('matchmaking_joined', { message: 'Looking for opponent...' });
+          // Add to queue with stake preference
+          await MatchmakingModel.addToQueue(user.id, stakeTokens);
+          socket.emit('matchmaking_joined', { 
+            message: stakeTokens > 0 
+              ? `Looking for opponent with ${stakeTokens.toLocaleString()} token stakes...`
+              : 'Looking for opponent...'
+          });
         }
       } catch (error) {
         console.error('Error in matchmaking:', error);

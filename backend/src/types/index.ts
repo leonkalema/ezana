@@ -113,6 +113,7 @@ export interface GameRoom {
 export interface MatchmakingQueue {
   id: number;
   user_id: number;
+  stake_tokens: number;
   created_at: Date;
 }
 
