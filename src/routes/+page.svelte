@@ -30,7 +30,7 @@
       
       <p class="text-xl md:text-2xl text-[#2D2D2D]/70 mb-8 max-w-3xl mx-auto">
         The ultimate peer-to-peer checkers experience. Play with friends in real-time, 
-        create private games, or find opponents through matchmaking.
+        create private games, or find opponents through matchmaking. Play and make money. 
       </p>
       
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
