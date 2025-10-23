@@ -62,10 +62,10 @@ export class EscrowService {
         reference: session.game_code
       });
 
-      // Credit house (user_id = 0) with total held funds (logical escrow)
+      // Credit house (user_id = 10) with total held funds (logical escrow)
       console.log(`[Escrow] Crediting house with ${stake * 2} tokens`);
       await LedgerModel.add(conn, {
-        userId: 0, // House account
+        userId: 10, // House account
         kind: 'stake_hold',
         direction: 'credit',
         amount: stake * 2,
@@ -100,7 +100,7 @@ export class EscrowService {
       if (session.winner_id) {
         // Debit house by payout and credit winner
         await LedgerModel.add(conn, {
-          userId: 0, // House account
+          userId: 10, // House account
           kind: 'stake_payout',
           direction: 'debit',
           amount: payout,
@@ -118,7 +118,7 @@ export class EscrowService {
       } else {
         // Draw: refund both stakes
         await LedgerModel.add(conn, {
-          userId: 0, // House account
+          userId: 10, // House account
           kind: 'stake_refund',
           direction: 'debit',
           amount: total,

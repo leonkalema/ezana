@@ -5,7 +5,7 @@ export type LedgerDirection = 'credit' | 'debit';
 
 export interface LedgerRow {
   id: number;
-  user_id: number; // 0 = house account, >0 = player accounts
+  user_id: number; // 10 = house account, others = player accounts
   kind: LedgerKind;
   direction: LedgerDirection;
   amount: number;
