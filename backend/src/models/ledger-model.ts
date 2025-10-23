@@ -5,7 +5,7 @@ export type LedgerDirection = 'credit' | 'debit';
 
 export interface LedgerRow {
   id: number;
-  user_id: number | null;
+  user_id: number; // 0 = house account, >0 = player accounts
   kind: LedgerKind;
   direction: LedgerDirection;
   amount: number;
@@ -16,7 +16,7 @@ export interface LedgerRow {
 export class LedgerModel {
   static async add(
     tx: any,
-    params: { userId: number | null; kind: LedgerKind; direction: LedgerDirection; amount: number; reference?: string | null }
+    params: { userId: number; kind: LedgerKind; direction: LedgerDirection; amount: number; reference?: string | null }
   ): Promise<void> {
     await tx.query(
       'INSERT INTO ledger_transactions (user_id, kind, direction, amount, reference) VALUES (?, ?, ?, ?, ?)',

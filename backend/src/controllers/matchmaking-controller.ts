@@ -10,6 +10,9 @@ export class MatchmakingController {
     try {
       const userId = req.user?.id;
       const { stakeTokens = 0 } = req.body;
+      const io = req.app.get('io');
+      
+      console.log(`[Matchmaking] User ${userId} joining queue with stake: ${stakeTokens}`);
       
       if (!userId) {
         res.status(401).json({ error: 'User not authenticated' });
@@ -94,11 +97,15 @@ export class MatchmakingController {
           // Set stakes if specified and hold escrow immediately
           if (stakeTokens > 0) {
             try {
+              console.log(`[Matchmaking] Setting stake config for game ${gameSession.game_code}`);
               await GameSessionModel.setStakeConfig(gameSession.game_code, stakeTokens);
+              
+              console.log(`[Matchmaking] Holding escrow for game ${gameSession.game_code}`);
               await EscrowService.holdForGame(gameSession.game_code);
+              console.log(`[Matchmaking] Escrow held successfully for game ${gameSession.game_code}`);
             } catch (escrowError) {
               // If escrow fails, abandon the game and return error
-              console.error('Escrow failed:', escrowError);
+              console.error(`[Matchmaking] Escrow failed for game ${gameSession.game_code}:`, escrowError);
               await GameSessionModel.endGame(gameSession.game_code, null, 'abandoned');
               
               throw escrowError; // Rollback transaction
@@ -110,6 +117,15 @@ export class MatchmakingController {
 
           // Get final game session with stakes
           const finalGameSession = await GameSessionModel.findByGameCode(gameSession.game_code);
+          
+          console.log(`[Matchmaking] Match created: ${gameSession.game_code}, Player1: ${opponent.user_id}, Player2: ${userId}`);
+          
+          // Notify both players via Socket.IO
+          if (io) {
+            io.to(`user_${opponent.user_id}`).emit('match_found', { gameSession: finalGameSession });
+            io.to(`user_${userId}`).emit('match_found', { gameSession: finalGameSession });
+            console.log(`[Matchmaking] Socket.IO notifications sent to both players`);
+          }
 
           return {
             matched: true,

@@ -6,16 +6,43 @@ import { LedgerModel } from '../../models/ledger-model.js';
 export class EscrowService {
   // Hold stakes for both players. Requires stakeTokens to be set on session beforehand.
   static async holdForGame(gameCode: string): Promise<void> {
+    console.log(`[Escrow] Starting holdForGame for ${gameCode}`);
     const session = await GameSessionModel.findByGameCode(gameCode);
-    if (!session) throw new Error('Game not found');
-    if (!session.player1_id || !session.player2_id) throw new Error('Both players required');
-    if (!session.stake_tokens || session.stake_tokens <= 0) return; // no staking
-    if (session.escrow_status && session.escrow_status !== 'none') return; // already handled
+    
+    if (!session) {
+      console.error(`[Escrow] Game not found: ${gameCode}`);
+      throw new Error('Game not found');
+    }
+    
+    console.log(`[Escrow] Game session:`, { 
+      gameCode, 
+      player1: session.player1_id, 
+      player2: session.player2_id,
+      stake: session.stake_tokens,
+      escrowStatus: session.escrow_status
+    });
+    
+    if (!session.player1_id || !session.player2_id) {
+      console.error(`[Escrow] Both players required for ${gameCode}`);
+      throw new Error('Both players required');
+    }
+    
+    if (!session.stake_tokens || session.stake_tokens <= 0) {
+      console.log(`[Escrow] No staking for game ${gameCode}, skipping escrow`);
+      return; // no staking
+    }
+    
+    if (session.escrow_status && session.escrow_status !== 'none') {
+      console.log(`[Escrow] Escrow already handled for ${gameCode}, status: ${session.escrow_status}`);
+      return; // already handled
+    }
 
     const stake = Number(session.stake_tokens);
+    console.log(`[Escrow] Holding ${stake} tokens from each player for game ${gameCode}`);
 
     await withTransaction(async (conn) => {
       // Debit both players
+      console.log(`[Escrow] Debiting ${stake} from player1 (${session.player1_id})`);
       await UserBalanceModel.debit(session.player1_id, stake, conn);
       await LedgerModel.add(conn, {
         userId: session.player1_id,
@@ -25,6 +52,7 @@ export class EscrowService {
         reference: session.game_code
       });
 
+      console.log(`[Escrow] Debiting ${stake} from player2 (${session.player2_id})`);
       await UserBalanceModel.debit(session.player2_id!, stake, conn);
       await LedgerModel.add(conn, {
         userId: session.player2_id!,
@@ -34,9 +62,10 @@ export class EscrowService {
         reference: session.game_code
       });
 
-      // Credit house (null user) with total held funds (logical escrow)
+      // Credit house (user_id = 0) with total held funds (logical escrow)
+      console.log(`[Escrow] Crediting house with ${stake * 2} tokens`);
       await LedgerModel.add(conn, {
-        userId: null,
+        userId: 0, // House account
         kind: 'stake_hold',
         direction: 'credit',
         amount: stake * 2,
@@ -44,10 +73,13 @@ export class EscrowService {
       });
 
       // Mark escrow held on session
+      console.log(`[Escrow] Marking escrow as held for ${gameCode}`);
       await conn.query(
         'UPDATE game_sessions SET escrow_status = "held" WHERE game_code = ? AND (escrow_status = "none" OR escrow_status IS NULL)',
         [session.game_code]
       );
+      
+      console.log(`[Escrow] Successfully held escrow for game ${gameCode}`);
     });
   }
 
@@ -68,7 +100,7 @@ export class EscrowService {
       if (session.winner_id) {
         // Debit house by payout and credit winner
         await LedgerModel.add(conn, {
-          userId: null,
+          userId: 0, // House account
           kind: 'stake_payout',
           direction: 'debit',
           amount: payout,
@@ -86,7 +118,7 @@ export class EscrowService {
       } else {
         // Draw: refund both stakes
         await LedgerModel.add(conn, {
-          userId: null,
+          userId: 0, // House account
           kind: 'stake_refund',
           direction: 'debit',
           amount: total,
