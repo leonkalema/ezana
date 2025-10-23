@@ -331,6 +331,20 @@ export class SocketHandler {
       try {
         const stakeTokens = data.stakeTokens || 0;
         
+        // Validate user has sufficient balance for stakes
+        if (stakeTokens > 0) {
+          const { UserBalanceModel } = await import('../models/user-balance-model.js');
+          const userBalance = await UserBalanceModel.get(user.id);
+          if (userBalance.balance_tokens < stakeTokens) {
+            socket.emit('error', { 
+              message: 'Insufficient balance',
+              required: stakeTokens,
+              available: userBalance.balance_tokens
+            });
+            return;
+          }
+        }
+        
         // Remove from queue first (in case already in queue)
         await MatchmakingModel.removeFromQueue(user.id);
         
@@ -338,14 +352,52 @@ export class SocketHandler {
         const opponent = await MatchmakingModel.getOldestQueuedPlayer(user.id, stakeTokens);
         
         if (opponent) {
+          // Validate opponent still has sufficient balance before creating match
+          if (stakeTokens > 0) {
+            const { UserBalanceModel } = await import('../models/user-balance-model.js');
+            const opponentBalance = await UserBalanceModel.get(opponent.user_id);
+            
+            if (opponentBalance.balance_tokens < stakeTokens) {
+              // Opponent no longer has sufficient balance, remove from queue
+              await MatchmakingModel.removeFromQueue(opponent.user_id);
+              
+              // Try to find another opponent
+              const nextOpponent = await MatchmakingModel.getOldestQueuedPlayer(user.id, stakeTokens);
+              if (!nextOpponent) {
+                // No other opponent, add current user to queue
+                await MatchmakingModel.addToQueue(user.id, stakeTokens);
+                socket.emit('matchmaking_joined', { 
+                  message: stakeTokens > 0 
+                    ? `Looking for opponent with ${stakeTokens.toLocaleString()} token stakes...`
+                    : 'Looking for opponent...'
+                });
+                return;
+              }
+              // Use the next opponent instead
+              opponent.user_id = nextOpponent.user_id;
+            }
+          }
+          
           // Create game and notify both players
           const gameSession = await GameSessionModel.create(opponent.user_id);
           const updatedGameSession = await GameSessionModel.joinGame(gameSession.game_code, user.id);
 
           // Set stakes for the game if specified and hold escrow immediately
           if (stakeTokens > 0) {
-            await GameSessionModel.setStakeConfig(gameSession.game_code, stakeTokens);
-            await EscrowService.holdForGame(gameSession.game_code);
+            try {
+              await GameSessionModel.setStakeConfig(gameSession.game_code, stakeTokens);
+              await EscrowService.holdForGame(gameSession.game_code);
+            } catch (escrowError) {
+              // If escrow fails, abandon the game and notify user
+              console.error('Escrow failed:', escrowError);
+              await GameSessionModel.endGame(gameSession.game_code, null, 'abandoned');
+              
+              socket.emit('error', { 
+                message: 'Failed to hold stakes. Game cancelled.',
+                details: escrowError instanceof Error ? escrowError.message : 'Unknown error'
+              });
+              return;
+            }
           }
 
           // Remove both from queue

@@ -3,6 +3,7 @@ import { MatchmakingModel } from '../models/matchmaking-model.js';
 import { GameSessionModel } from '../models/game-session-model.js';
 import { EscrowService } from '../services/escrow/escrow-service.js';
 import { AuthenticatedRequest } from '../middleware/auth-middleware.js';
+import { withTransaction } from '../utils/tx.js';
 
 export class MatchmakingController {
   static async joinQueue(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -34,49 +35,105 @@ export class MatchmakingController {
         return;
       }
 
-      // Try to find an opponent with same stake amount
-      const opponent = await MatchmakingModel.getOldestQueuedPlayer(userId, stakeTokens);
-      
-      if (opponent) {
-        // Create a game with the opponent
-        const gameSession = await GameSessionModel.create(opponent.user_id);
-        
-        // Join the game as player 2
-        const updatedGameSession = await GameSessionModel.joinGame(gameSession.game_code, userId);
-        
-        // Set stakes if specified and hold escrow immediately
-        if (stakeTokens > 0) {
-          await GameSessionModel.setStakeConfig(gameSession.game_code, stakeTokens);
-          await EscrowService.holdForGame(gameSession.game_code);
+      // Validate user has sufficient balance for stakes
+      if (stakeTokens > 0) {
+        const { UserBalanceModel } = await import('../models/user-balance-model.js');
+        const userBalance = await UserBalanceModel.get(userId);
+        if (userBalance.balance_tokens < stakeTokens) {
+          res.status(400).json({ 
+            error: 'Insufficient balance',
+            required: stakeTokens,
+            available: userBalance.balance_tokens
+          });
+          return;
         }
-        
-        // Remove both players from queue
-        await MatchmakingModel.removeFromQueue(opponent.user_id);
-        await MatchmakingModel.removeFromQueue(userId);
-
-        // Get final game session with stakes
-        const finalGameSession = await GameSessionModel.findByGameCode(gameSession.game_code);
-
-        res.json({
-          message: stakeTokens > 0 
-            ? `Match found! Game created with ${stakeTokens.toLocaleString()} token stakes.`
-            : 'Match found! Game created.',
-          gameSession: finalGameSession,
-          matched: true
-        });
-      } else {
-        // Add to queue with stake preference
-        await MatchmakingModel.addToQueue(userId, stakeTokens);
-        const queueSize = await MatchmakingModel.getQueueSize();
-        
-        res.json({
-          message: stakeTokens > 0 
-            ? `Added to matchmaking queue for ${stakeTokens.toLocaleString()} token games`
-            : 'Added to matchmaking queue',
-          queueSize,
-          matched: false
-        });
       }
+
+      // Use transaction to prevent race conditions
+      const result = await withTransaction(async (conn) => {
+        // Try to find an opponent with same stake amount (with lock)
+        const opponent = await MatchmakingModel.getOldestQueuedPlayer(userId, stakeTokens, conn);
+        
+        if (opponent) {
+          // Validate opponent still has sufficient balance before creating match
+          if (stakeTokens > 0) {
+            const { UserBalanceModel } = await import('../models/user-balance-model.js');
+            const opponentBalance = await UserBalanceModel.get(opponent.user_id);
+            
+            if (opponentBalance.balance_tokens < stakeTokens) {
+              // Opponent no longer has sufficient balance, remove from queue
+              await MatchmakingModel.removeFromQueue(opponent.user_id);
+              
+              // Try to find another opponent
+              const nextOpponent = await MatchmakingModel.getOldestQueuedPlayer(userId, stakeTokens, conn);
+              if (!nextOpponent) {
+                // No other opponent, add current user to queue
+                await MatchmakingModel.addToQueue(userId, stakeTokens);
+                const queueSize = await MatchmakingModel.getQueueSize();
+                
+                return {
+                  matched: false,
+                  message: `Added to matchmaking queue for ${stakeTokens.toLocaleString()} token games`,
+                  queueSize
+                };
+              }
+              // Use the next opponent instead
+              opponent.user_id = nextOpponent.user_id;
+            }
+          }
+          
+          // Remove opponent from queue immediately to prevent double-matching
+          await MatchmakingModel.removeFromQueue(opponent.user_id);
+          
+          // Create a game with the opponent
+          const gameSession = await GameSessionModel.create(opponent.user_id);
+          
+          // Join the game as player 2
+          const updatedGameSession = await GameSessionModel.joinGame(gameSession.game_code, userId);
+          
+          // Set stakes if specified and hold escrow immediately
+          if (stakeTokens > 0) {
+            try {
+              await GameSessionModel.setStakeConfig(gameSession.game_code, stakeTokens);
+              await EscrowService.holdForGame(gameSession.game_code);
+            } catch (escrowError) {
+              // If escrow fails, abandon the game and return error
+              console.error('Escrow failed:', escrowError);
+              await GameSessionModel.endGame(gameSession.game_code, null, 'abandoned');
+              
+              throw escrowError; // Rollback transaction
+            }
+          }
+          
+          // Remove current user from queue
+          await MatchmakingModel.removeFromQueue(userId);
+
+          // Get final game session with stakes
+          const finalGameSession = await GameSessionModel.findByGameCode(gameSession.game_code);
+
+          return {
+            matched: true,
+            message: stakeTokens > 0 
+              ? `Match found! Game created with ${stakeTokens.toLocaleString()} token stakes.`
+              : 'Match found! Game created.',
+            gameSession: finalGameSession
+          };
+        } else {
+          // Add to queue with stake preference
+          await MatchmakingModel.addToQueue(userId, stakeTokens);
+          const queueSize = await MatchmakingModel.getQueueSize();
+          
+          return {
+            matched: false,
+            message: stakeTokens > 0 
+              ? `Added to matchmaking queue for ${stakeTokens.toLocaleString()} token games`
+              : 'Added to matchmaking queue',
+            queueSize
+          };
+        }
+      });
+
+      res.json(result);
     } catch (error) {
       console.error('Join queue error:', error);
       res.status(500).json({ error: 'Failed to join matchmaking queue' });

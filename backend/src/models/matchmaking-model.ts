@@ -49,7 +49,7 @@ export class MatchmakingModel {
     return await db.query<MatchmakingQueue>(query, params);
   }
 
-  static async getOldestQueuedPlayer(excludeUserId?: number, stakeTokens?: number): Promise<MatchmakingQueue | null> {
+  static async getOldestQueuedPlayer(excludeUserId?: number, stakeTokens?: number, conn?: any): Promise<MatchmakingQueue | null> {
     let query = `
       SELECT id, user_id, stake_tokens, created_at
       FROM matchmaking_queue
@@ -73,6 +73,12 @@ export class MatchmakingModel {
     }
 
     query += ' ORDER BY created_at ASC LIMIT 1';
+    
+    // Add FOR UPDATE SKIP LOCKED only if we're in a transaction
+    if (conn) {
+      query += ' FOR UPDATE SKIP LOCKED';
+      return await conn.queryOne<MatchmakingQueue>(query, params);
+    }
 
     return await db.queryOne<MatchmakingQueue>(query, params);
   }
