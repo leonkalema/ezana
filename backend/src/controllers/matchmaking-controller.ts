@@ -71,7 +71,7 @@ export class MatchmakingController {
               const nextOpponent = await MatchmakingModel.getOldestQueuedPlayer(userId, stakeTokens, conn);
               if (!nextOpponent) {
                 // No other opponent, add current user to queue
-                await MatchmakingModel.addToQueue(userId, stakeTokens);
+                await MatchmakingModel.addToQueue(userId, stakeTokens, conn);
                 const queueSize = await MatchmakingModel.getQueueSize();
                 
                 return {
@@ -86,7 +86,7 @@ export class MatchmakingController {
           }
           
           // Remove opponent from queue immediately to prevent double-matching
-          await MatchmakingModel.removeFromQueue(opponent.user_id);
+          await MatchmakingModel.removeFromQueue(opponent.user_id, conn);
           
           // Create a game with the opponent
           const gameSession = await GameSessionModel.create(opponent.user_id);
@@ -113,7 +113,7 @@ export class MatchmakingController {
           }
           
           // Remove current user from queue
-          await MatchmakingModel.removeFromQueue(userId);
+          await MatchmakingModel.removeFromQueue(userId, conn);
 
           // Get final game session with stakes
           const finalGameSession = await GameSessionModel.findByGameCode(gameSession.game_code);
@@ -136,7 +136,7 @@ export class MatchmakingController {
           };
         } else {
           // Add to queue with stake preference
-          await MatchmakingModel.addToQueue(userId, stakeTokens);
+          await MatchmakingModel.addToQueue(userId, stakeTokens, conn);
           const queueSize = await MatchmakingModel.getQueueSize();
           
           return {

@@ -2,23 +2,31 @@ import { db } from '../database/connection.js';
 import { MatchmakingQueue } from '../types/index.js';
 
 export class MatchmakingModel {
-  static async addToQueue(userId: number, stakeTokens: number = 0): Promise<void> {
+  static async addToQueue(userId: number, stakeTokens: number = 0, conn?: any): Promise<void> {
     const query = `
       INSERT INTO matchmaking_queue (user_id, stake_tokens)
       VALUES (?, ?)
       ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP, stake_tokens = VALUES(stake_tokens)
     `;
 
-    await db.query(query, [userId, stakeTokens]);
+    if (conn) {
+      await conn.execute(query, [userId, stakeTokens]);
+    } else {
+      await db.query(query, [userId, stakeTokens]);
+    }
   }
 
-  static async removeFromQueue(userId: number): Promise<void> {
+  static async removeFromQueue(userId: number, conn?: any): Promise<void> {
     const query = `
       DELETE FROM matchmaking_queue
       WHERE user_id = ?
     `;
 
-    await db.query(query, [userId]);
+    if (conn) {
+      await conn.execute(query, [userId]);
+    } else {
+      await db.query(query, [userId]);
+    }
   }
 
   static async findInQueue(userId: number): Promise<MatchmakingQueue | null> {
