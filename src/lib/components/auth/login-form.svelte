@@ -29,15 +29,15 @@
 </script>
 
 <div class="w-full max-w-md mx-auto">
-  <div class="bg-white shadow-lg rounded-lg p-8">
+  <div class="bg-white shadow-lg rounded-2xl p-8 border-2 border-[#E9E8E3]">
     <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">Welcome Back</h1>
-      <p class="text-gray-600 mt-2">Sign in to your Binojo account</p>
+      <h1 class="text-4xl font-bold text-[#2D2D2D]">Welcome Back</h1>
+      <p class="text-[#6B8E7E] mt-2 text-lg">Sign in to your Binojo account</p>
     </div>
     
     <form on:submit|preventDefault={handleLogin} class="space-y-6">
       <div>
-        <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="username" class="block text-sm font-medium text-[#2D2D2D] mb-2">
           Username
         </label>
         <input
@@ -46,14 +46,14 @@
           bind:value={username}
           on:keypress={handleKeyPress}
           disabled={isLoading}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          class="w-full px-4 py-3 border-2 border-[#E9E8E3] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#6B8E7E] focus:border-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:cursor-not-allowed text-[#2D2D2D]"
           placeholder="Enter your username"
           required
         />
       </div>
       
       <div>
-        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="password" class="block text-sm font-medium text-[#2D2D2D] mb-2">
           Password
         </label>
         <div class="relative">
@@ -63,14 +63,14 @@
             bind:value={password}
             on:keypress={handleKeyPress}
             disabled={isLoading}
-            class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class="w-full px-4 py-3 pr-10 border-2 border-[#E9E8E3] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#6B8E7E] focus:border-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:cursor-not-allowed text-[#2D2D2D]"
             placeholder="Enter your password"
             required
           />
           <button
             type="button"
             on:click={() => showPassword = !showPassword}
-            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#6B8E7E] hover:text-[#5a7569]"
           >
             {#if showPassword}
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -100,7 +100,7 @@
       <button
         type="submit"
         disabled={isLoading || !username.trim() || !password.trim()}
-        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-base font-semibold text-white bg-[#6B8E7E] hover:bg-[#5a7569] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:text-[#2D2D2D] disabled:cursor-not-allowed transition-all"
       >
         {#if isLoading}
           <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -115,9 +115,9 @@
     </form>
     
     <div class="mt-6 text-center">
-      <p class="text-sm text-gray-600">
+      <p class="text-sm text-[#2D2D2D] opacity-70">
         Don't have an account?
-        <a href="/register" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+        <a href="/register" class="font-semibold text-[#6B8E7E] hover:text-[#5a7569] transition-colors">
           Sign up here
         </a>
       </p>

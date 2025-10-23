@@ -1,3 +1,17 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+@theme {
+  --color-warm-white: #FAFAF9;
+  --color-charcoal: #2D2D2D;
+  --color-sage: #6B8E7E;
+  --color-clay: #E9E8E3;
+  --color-sage-dark: #5a7569;
+  --color-sage-light: #8ba89d;
+}
+
+body {
+  background-color: var(--color-warm-white);
+  color: var(--color-charcoal);
+}

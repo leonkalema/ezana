@@ -12,6 +12,7 @@
   let showStakeModal = false;
   let selectedStake = 0;
   let pendingAction: 'create' | 'join' | null = null;
+  let isValidatingAuth = true;
   
   $: ({ isAuthenticated } = $authStore);
   $: ({ activeGames, error, isLoading, currentGame } = $gameStore);
@@ -28,8 +29,15 @@
   }
   
   onMount(async () => {
-    if (!isAuthenticated) goto('/login');
+    // Validate token is still valid
+    const isValid = await authStore.validateAuth();
+    if (!isValid) {
+      goto('/login');
+      return;
+    }
+    
     await gameStore.loadActiveGames();
+    isValidatingAuth = false;
   });
   
   function showStakeSelection(action: 'create' | 'join') {
@@ -90,72 +98,79 @@
   }
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
+<div class="min-h-screen bg-[#FAFAF9] flex items-center justify-center p-4">
+  {#if isValidatingAuth}
+    <div class="text-center text-[#2D2D2D]">
+      <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-[#6B8E7E] mx-auto mb-4"></div>
+      <p class="text-lg">Loading...</p>
+    </div>
+  {:else}
   <div class="w-full max-w-md space-y-6">
-    <div class="text-center text-white mb-8">
-      <h1 class="text-4xl font-bold mb-2">Binojo</h1>
-      <p class="text-blue-100">Play Checkers Online</p>
+    <div class="text-center text-[#2D2D2D] mb-8">
+      <h1 class="text-5xl font-bold mb-2">Binojo</h1>
+      <p class="text-[#6B8E7E] text-lg font-medium">Play Checkers Online</p>
     </div>
     
     <button
       on:click={() => showStakeSelection('create')}
       disabled={isCreating}
-      class="w-full bg-white text-blue-600 text-xl font-bold py-6 rounded-2xl shadow-2xl hover:shadow-3xl hover:scale-105 transition-all disabled:opacity-50"
+      class="w-full bg-[#6B8E7E] text-white text-xl font-bold py-6 rounded-2xl shadow-lg hover:bg-[#5a7569] hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50"
     >
       {isCreating ? 'Searching for opponent...' : 'Play Now'}
     </button>
     
-    <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 space-y-4">
+    <div class="bg-[#E9E8E3] rounded-2xl p-6 space-y-4 shadow-md">
       <input
         type="text"
         bind:value={gameCodeInput}
         placeholder="Enter game code"
-        class="w-full px-4 py-4 text-center text-lg font-mono uppercase bg-white/90 rounded-xl focus:outline-none focus:ring-4 focus:ring-white/50"
+        class="w-full px-4 py-4 text-center text-lg font-mono uppercase bg-white border-2 border-[#E9E8E3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B8E7E] focus:border-[#6B8E7E] text-[#2D2D2D]"
         maxlength="8"
       />
       <button
         on:click={() => showStakeSelection('join')}
         disabled={!gameCodeInput.trim() || isJoining}
-        class="w-full bg-white/20 text-white font-semibold py-4 rounded-xl hover:bg-white/30 transition-all disabled:opacity-30"
+        class="w-full bg-white border-2 border-[#6B8E7E] text-[#6B8E7E] font-semibold py-4 rounded-xl hover:bg-[#6B8E7E] hover:text-white transition-all disabled:opacity-30"
       >
         {isJoining ? 'Joining...' : 'Join Game'}
       </button>
     </div>
     
     {#if activeGames.length > 0}
-      <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-4 space-y-2">
-        <h3 class="text-white font-semibold mb-3">Continue Playing</h3>
+      <div class="bg-white rounded-2xl p-4 space-y-2 shadow-md">
+        <h3 class="text-[#2D2D2D] font-semibold mb-3">Continue Playing</h3>
         {#each activeGames.slice(0, 3) as game}
           <button
             on:click={() => goto(`/game/${game.game_code}`)}
-            class="w-full bg-white/20 text-white px-4 py-3 rounded-xl hover:bg-white/30 transition-all text-left"
+            class="w-full bg-[#E9E8E3] text-[#2D2D2D] px-4 py-3 rounded-xl hover:bg-[#6B8E7E] hover:text-white transition-all text-left"
           >
             <div class="font-mono font-bold">{game.game_code}</div>
-            <div class="text-sm text-white/70">{game.status}</div>
+            <div class="text-sm opacity-70">{game.status}</div>
           </button>
         {/each}
       </div>
     {/if}
     
     {#if error}
-      <div class="bg-red-500 text-white px-4 py-3 rounded-xl text-center">
+      <div class="bg-red-50 border-2 border-red-400 text-red-700 px-4 py-3 rounded-xl text-center">
         {error}
       </div>
     {/if}
   </div>
+  {/if}
 </div>
 
 <!-- Stake Selection Modal -->
 {#if showStakeModal}
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+  <div class="fixed inset-0 bg-[#2D2D2D]/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-[#FAFAF9] rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">
+        <h2 class="text-2xl font-bold text-[#2D2D2D]">
           {pendingAction === 'create' ? 'Create Game' : 'Join Game'} - Select Stakes
         </h2>
         <button 
           on:click={() => showStakeModal = false}
-          class="text-gray-400 hover:text-gray-600 text-2xl"
+          class="text-[#6B8E7E] hover:text-[#5a7569] text-2xl"
         >
           ×
         </button>
@@ -170,13 +185,13 @@
       <div class="flex space-x-4 mt-6">
         <button
           on:click={() => showStakeModal = false}
-          class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+          class="flex-1 px-6 py-3 border-2 border-[#E9E8E3] text-[#2D2D2D] rounded-lg hover:bg-[#E9E8E3] font-medium transition-all"
         >
           Cancel
         </button>
         <button
           on:click={executeWithStake}
-          class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          class="flex-1 px-6 py-3 bg-[#6B8E7E] text-white rounded-lg hover:bg-[#5a7569] font-medium transition-all"
           disabled={selectedStake > 0 && $walletStore.balance < selectedStake}
         >
           {pendingAction === 'create' ? 'Create Game' : 'Join Game'}

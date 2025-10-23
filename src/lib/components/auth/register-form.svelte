@@ -35,15 +35,15 @@
 </script>
 
 <div class="w-full max-w-md mx-auto">
-  <div class="bg-white shadow-lg rounded-lg p-8">
+  <div class="bg-white shadow-lg rounded-2xl p-8 border-2 border-[#E9E8E3]">
     <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">Create Account</h1>
-      <p class="text-gray-600 mt-2">Join Binojo and start playing checkers</p>
+      <h1 class="text-4xl font-bold text-[#2D2D2D]">Create Account</h1>
+      <p class="text-[#6B8E7E] mt-2 text-lg">Join Binojo and start playing checkers</p>
     </div>
     
     <form on:submit|preventDefault={handleRegister} class="space-y-6">
       <div>
-        <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="username" class="block text-sm font-medium text-[#2D2D2D] mb-2">
           Username
         </label>
         <input
@@ -52,7 +52,7 @@
           bind:value={username}
           on:keypress={handleKeyPress}
           disabled={isLoading}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          class="w-full px-4 py-3 border-2 border-[#E9E8E3] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#6B8E7E] focus:border-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:cursor-not-allowed text-[#2D2D2D]"
           placeholder="Choose a username"
           required
         />
@@ -64,7 +64,7 @@
       </div>
       
       <div>
-        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="email" class="block text-sm font-medium text-[#2D2D2D] mb-2">
           Email Address
         </label>
         <input
@@ -73,7 +73,7 @@
           bind:value={email}
           on:keypress={handleKeyPress}
           disabled={isLoading}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          class="w-full px-4 py-3 border-2 border-[#E9E8E3] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#6B8E7E] focus:border-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:cursor-not-allowed text-[#2D2D2D]"
           placeholder="Enter your email"
           required
         />
@@ -85,7 +85,7 @@
       </div>
       
       <div>
-        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="password" class="block text-sm font-medium text-[#2D2D2D] mb-2">
           Password
         </label>
         <div class="relative">
@@ -95,14 +95,14 @@
             bind:value={password}
             on:keypress={handleKeyPress}
             disabled={isLoading}
-            class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class="w-full px-4 py-3 pr-10 border-2 border-[#E9E8E3] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#6B8E7E] focus:border-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:cursor-not-allowed text-[#2D2D2D]"
             placeholder="Create a password"
             required
           />
           <button
             type="button"
             on:click={() => showPassword = !showPassword}
-            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#6B8E7E] hover:text-[#5a7569]"
           >
             {#if showPassword}
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,7 +124,7 @@
       </div>
       
       <div>
-        <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="confirmPassword" class="block text-sm font-medium text-[#2D2D2D] mb-2">
           Confirm Password
         </label>
         <div class="relative">
@@ -134,14 +134,14 @@
             bind:value={confirmPassword}
             on:keypress={handleKeyPress}
             disabled={isLoading}
-            class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class="w-full px-4 py-3 pr-10 border-2 border-[#E9E8E3] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#6B8E7E] focus:border-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:cursor-not-allowed text-[#2D2D2D]"
             placeholder="Confirm your password"
             required
           />
           <button
             type="button"
             on:click={() => showConfirmPassword = !showConfirmPassword}
-            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#6B8E7E] hover:text-[#5a7569]"
           >
             {#if showConfirmPassword}
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -176,7 +176,7 @@
       <button
         type="submit"
         disabled={!canSubmit}
-        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-base font-semibold text-white bg-[#6B8E7E] hover:bg-[#5a7569] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6B8E7E] disabled:bg-[#E9E8E3] disabled:text-[#2D2D2D] disabled:cursor-not-allowed transition-all"
       >
         {#if isLoading}
           <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -191,9 +191,9 @@
     </form>
     
     <div class="mt-6 text-center">
-      <p class="text-sm text-gray-600">
+      <p class="text-sm text-[#2D2D2D] opacity-70">
         Already have an account?
-        <a href="/login" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+        <a href="/login" class="font-semibold text-[#6B8E7E] hover:text-[#5a7569] transition-colors">
           Sign in here
         </a>
       </p>
