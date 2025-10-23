@@ -14,11 +14,11 @@
 </script>
 
 <svelte:head>
-	<title>Binojo - Peer-to-Peer Checkers</title>
-	<meta name="description" content="Play checkers online with friends in real-time" />
+	<title>Binojo - Play Checkers, Win Money, Get Rich</title>
+	<meta name="description" content="Play checkers online with real stakes. Win money, compete with players worldwide, and get rich playing the game you love." />
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-[#FAFAF9]">
 	<Navbar />
 	<main class="flex-1">
 		{@render children?.()}
