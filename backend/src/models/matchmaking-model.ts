@@ -77,7 +77,9 @@ export class MatchmakingModel {
     // Add FOR UPDATE SKIP LOCKED only if we're in a transaction
     if (conn) {
       query += ' FOR UPDATE SKIP LOCKED';
-      return await conn.queryOne<MatchmakingQueue>(query, params);
+      const [rows] = await conn.execute(query, params);
+      const results = rows as MatchmakingQueue[];
+      return results[0] || null;
     }
 
     return await db.queryOne<MatchmakingQueue>(query, params);
