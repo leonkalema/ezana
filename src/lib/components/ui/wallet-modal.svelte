@@ -94,9 +94,9 @@
           <!-- Balance Tab -->
           <div class="space-y-6">
             <!-- Current Balance -->
-            <div class="text-center p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
-              <div class="text-sm text-gray-600 mb-2">Current Balance</div>
-              <div class="text-4xl font-bold text-blue-600 mb-2">
+            <div class="text-center p-6 bg-[#E9E8E3] rounded-xl">
+              <div class="text-sm text-[#2D2D2D]/70 mb-2">Current Balance</div>
+              <div class="text-4xl font-bold text-[#6B8E7E] mb-2">
                 {$walletStore.balance.toLocaleString()}
               </div>
               <div class="text-sm text-gray-500">tokens</div>
