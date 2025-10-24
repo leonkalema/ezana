@@ -8,10 +8,13 @@
   
   let gameCodeInput = '';
   let isCreating = false;
+  let isCreatingPrivate = false;
   let isJoining = false;
   let showStakeModal = false;
+  let showPrivateGameModal = false;
+  let privateGameCode = '';
   let selectedStake = 0;
-  let pendingAction: 'create' | 'join' | null = null;
+  let pendingAction: 'matchmaking' | 'private' | 'join' | null = null;
   let isValidatingAuth = true;
   
   $: ({ isAuthenticated } = $authStore);
@@ -40,7 +43,7 @@
     isValidatingAuth = false;
   });
   
-  function showStakeSelection(action: 'create' | 'join') {
+  function showStakeSelection(action: 'matchmaking' | 'private' | 'join') {
     pendingAction = action;
     showStakeModal = true;
   }
@@ -50,13 +53,50 @@
     
     showStakeModal = false;
     
-    if (pendingAction === 'create') {
+    if (pendingAction === 'matchmaking') {
       await playNow();
+    } else if (pendingAction === 'private') {
+      await createPrivateGame();
     } else if (pendingAction === 'join') {
       await joinGame();
     }
     
     pendingAction = null;
+  }
+
+  async function createPrivateGame() {
+    isCreatingPrivate = true;
+    try {
+      await gameStore.createGame();
+      
+      if ($gameStore.currentGame) {
+        privateGameCode = $gameStore.currentGame.game_code;
+        
+        // Set stake if selected
+        if (selectedStake > 0) {
+          try {
+            await walletService.setGameStake(privateGameCode, selectedStake);
+          } catch (error) {
+            console.error('Failed to set stake:', error);
+          }
+        }
+        
+        showPrivateGameModal = true;
+      }
+    } catch (error) {
+      console.error('Failed to create private game:', error);
+    } finally {
+      isCreatingPrivate = false;
+    }
+  }
+
+  function copyGameCode() {
+    navigator.clipboard.writeText(privateGameCode);
+  }
+
+  function joinPrivateGame() {
+    showPrivateGameModal = false;
+    goto(`/game/${privateGameCode}`);
   }
 
   async function playNow() {
@@ -112,11 +152,19 @@
     </div>
     
     <button
-      on:click={() => showStakeSelection('create')}
+      on:click={() => showStakeSelection('matchmaking')}
       disabled={isCreating}
       class="w-full bg-[#6B8E7E] text-white text-xl font-bold py-6 rounded-2xl shadow-lg hover:bg-[#5a7569] hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50"
     >
-      {isCreating ? 'Searching for opponent...' : 'Play Now'}
+      {isCreating ? 'Searching for opponent...' : 'Play Now (Matchmaking)'}
+    </button>
+    
+    <button
+      on:click={() => showStakeSelection('private')}
+      disabled={isCreatingPrivate}
+      class="w-full bg-white border-2 border-[#6B8E7E] text-[#6B8E7E] text-xl font-bold py-6 rounded-2xl shadow-lg hover:bg-[#6B8E7E] hover:text-white hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50"
+    >
+      {isCreatingPrivate ? 'Creating...' : 'Create Private Game'}
     </button>
     
     <div class="bg-[#E9E8E3] rounded-2xl p-6 space-y-4 shadow-md">
@@ -166,7 +214,7 @@
     <div class="bg-[#FAFAF9] rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-[#2D2D2D]">
-          {pendingAction === 'create' ? 'Create Game' : 'Join Game'} - Select Stakes
+          {pendingAction === 'matchmaking' ? 'Matchmaking' : pendingAction === 'private' ? 'Create Private Game' : 'Join Game'} - Select Stakes
         </h2>
         <button 
           on:click={() => showStakeModal = false}
@@ -194,7 +242,50 @@
           class="flex-1 px-6 py-3 bg-[#6B8E7E] text-white rounded-lg hover:bg-[#5a7569] font-medium transition-all"
           disabled={selectedStake > 0 && $walletStore.balance < selectedStake}
         >
-          {pendingAction === 'create' ? 'Create Game' : 'Join Game'}
+          {pendingAction === 'matchmaking' ? 'Find Match' : pendingAction === 'private' ? 'Create Game' : 'Join Game'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Private Game Code Modal -->
+{#if showPrivateGameModal}
+  <div class="fixed inset-0 bg-[#2D2D2D]/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-[#FAFAF9] rounded-2xl p-8 w-full max-w-md shadow-2xl">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 bg-[#6B8E7E] rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-[#2D2D2D] mb-2">Private Game Created!</h2>
+        <p class="text-[#2D2D2D]/70">Share this code with your friend</p>
+      </div>
+      
+      <div class="bg-[#E9E8E3] rounded-xl p-6 mb-6">
+        <div class="text-center">
+          <p class="text-sm text-[#2D2D2D]/70 mb-2">Game Code</p>
+          <p class="text-4xl font-bold font-mono text-[#6B8E7E] tracking-wider">{privateGameCode}</p>
+        </div>
+      </div>
+      
+      <div class="space-y-3">
+        <button
+          on:click={copyGameCode}
+          class="w-full px-6 py-3 bg-white border-2 border-[#6B8E7E] text-[#6B8E7E] rounded-lg hover:bg-[#E9E8E3] font-medium transition-all flex items-center justify-center space-x-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <span>Copy Code</span>
+        </button>
+        
+        <button
+          on:click={joinPrivateGame}
+          class="w-full px-6 py-3 bg-[#6B8E7E] text-white rounded-lg hover:bg-[#5a7569] font-medium transition-all"
+        >
+          Enter Game Room
         </button>
       </div>
     </div>
