@@ -10,13 +10,15 @@ The core game is fully functional with matchmaking, private games, real-time gam
 
 **Priority: HIGH** - Required for production launch with real money
 
-### Payment System
+### Payment System (Token Economy)
 - [ ] Integrate payment gateway (Stripe/PayPal)
-- [ ] Deposit functionality with real money
-- [ ] Withdrawal system with verification
+- [ ] Token purchase packages (e.g., 100 tokens = $90 USD)
+- [ ] Token pricing tiers and bundles
+- [ ] Token-to-cash withdrawal system
 - [ ] Transaction history and receipts
-- [ ] Refund handling
-- [ ] Multi-currency support
+- [ ] Refund handling for token purchases
+- [ ] Multi-currency support for token purchases
+- [ ] Exchange rate management (tokens ↔ USD)
 
 ### Compliance & Legal
 - [ ] KYC (Know Your Customer) integration
@@ -61,7 +63,7 @@ The core game is fully functional with matchmaking, private games, real-time gam
 - [ ] Mobile-specific UI adjustments
 - [ ] Gesture controls
 - [ ] Progressive Web App (PWA)
-- [ ] Native app consideration
+
 
 ### Communication
 - [ ] Email notifications (game invites, turn reminders)
