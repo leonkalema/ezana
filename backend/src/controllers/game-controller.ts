@@ -259,10 +259,11 @@ export class GameController {
           console.log(`Player ${playerRole} timed out, using auto-move. Strikes: ${timeoutResult.strikes}`);
           move.from = timeoutResult.autoMove.from;
           move.to = timeoutResult.autoMove.to;
+          move.path = undefined; // Clear any path from dummy move
         }
       }
 
-      // Determine if a multi-jump path was provided
+      // Determine if a multi-jump path was provided (AFTER timeout replacement)
       const isPlayer1 = playerRole === 'player1';
       const path = move.path && move.path.length >= 2 ? move.path : undefined;
       const moveWithTimestamp = { ...move, timestamp: new Date() };
