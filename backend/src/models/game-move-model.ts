@@ -2,13 +2,27 @@ import { db } from '../database/connection.js';
 import { GameMove, CheckersMove } from '../types/index.js';
 
 export class GameMoveModel {
-  static async create(gameSessionId: number, playerId: number, moveData: CheckersMove, moveNumber: number): Promise<GameMove> {
+  static async create(
+    gameSessionId: number, 
+    playerId: number, 
+    moveData: CheckersMove, 
+    moveNumber: number,
+    isAutoMove: boolean = false,
+    timeUsedSeconds: number | null = null
+  ): Promise<GameMove> {
     const query = `
-      INSERT INTO game_moves (game_session_id, player_id, move_data, move_number)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO game_moves (game_session_id, player_id, move_data, move_number, is_auto_move, time_used_seconds)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    const result = await db.query(query, [gameSessionId, playerId, JSON.stringify(moveData), moveNumber]);
+    const result = await db.query(query, [
+      gameSessionId, 
+      playerId, 
+      JSON.stringify(moveData), 
+      moveNumber,
+      isAutoMove,
+      timeUsedSeconds
+    ]);
     const insertId = (result as any).insertId;
 
     const gameMove = await this.findById(insertId);
@@ -21,7 +35,7 @@ export class GameMoveModel {
 
   static async findById(id: number): Promise<GameMove | null> {
     const query = `
-      SELECT id, game_session_id, player_id, move_data, move_number, created_at
+      SELECT id, game_session_id, player_id, move_data, move_number, is_auto_move, time_used_seconds, created_at
       FROM game_moves
       WHERE id = ?
     `;
@@ -44,7 +58,7 @@ export class GameMoveModel {
 
   static async findByGameSession(gameSessionId: number): Promise<GameMove[]> {
     const query = `
-      SELECT id, game_session_id, player_id, move_data, move_number, created_at
+      SELECT id, game_session_id, player_id, move_data, move_number, is_auto_move, time_used_seconds, created_at
       FROM game_moves
       WHERE game_session_id = ?
       ORDER BY move_number ASC
@@ -79,7 +93,7 @@ export class GameMoveModel {
 
   static async getMoveHistory(gameSessionId: number, limit?: number): Promise<GameMove[]> {
     let query = `
-      SELECT id, game_session_id, player_id, move_data, move_number, created_at
+      SELECT id, game_session_id, player_id, move_data, move_number, is_auto_move, time_used_seconds, created_at
       FROM game_moves
       WHERE game_session_id = ?
       ORDER BY move_number DESC
