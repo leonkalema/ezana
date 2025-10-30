@@ -132,16 +132,30 @@ export class TimerService {
   }
 
   /**
-   * Get timer data for client
+   * Get real-time timer data for client (accounts for elapsed time)
    */
   static getTimerData(game: GameSession) {
+    let player1TimeRemaining = game.player1_time_remaining ?? INITIAL_TIME_SECONDS;
+    let player2TimeRemaining = game.player2_time_remaining ?? INITIAL_TIME_SECONDS;
+    
+    // Calculate elapsed time since last move for current player
+    if (game.last_move_timestamp && game.status === 'active') {
+      const elapsedSeconds = this.calculateTimeUsed(game.last_move_timestamp);
+      
+      if (game.current_turn === 'player1') {
+        player1TimeRemaining = Math.max(0, player1TimeRemaining - elapsedSeconds);
+      } else {
+        player2TimeRemaining = Math.max(0, player2TimeRemaining - elapsedSeconds);
+      }
+    }
+    
     return {
       player1: {
-        timeRemaining: game.player1_time_remaining ?? INITIAL_TIME_SECONDS,
+        timeRemaining: player1TimeRemaining,
         strikes: game.player1_strikes ?? 0,
       },
       player2: {
-        timeRemaining: game.player2_time_remaining ?? INITIAL_TIME_SECONDS,
+        timeRemaining: player2TimeRemaining,
         strikes: game.player2_strikes ?? 0,
       },
       currentTurn: game.current_turn,

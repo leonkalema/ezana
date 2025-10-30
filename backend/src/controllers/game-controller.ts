@@ -8,6 +8,7 @@ import { applyMovePath } from '../game/move-utils.js';
 import { AuthenticatedRequest } from '../types/index.js';
 import { EscrowService } from '../services/escrow/escrow-service.js';
 import { MoveProcessor } from '../services/game/move-processor.js';
+import { TimerService } from '../services/timer/timer-service.js';
 
 export class GameController {
   static async createGame(req: AuthenticatedRequest<{}, {}, CreateGameInput>, res: Response): Promise<void> {
@@ -183,7 +184,15 @@ export class GameController {
         return;
       }
 
-      res.json({ gameSession });
+      // Calculate real-time timer values
+      const timerData = TimerService.getTimerData(gameSession);
+      const enrichedGameSession = {
+        ...gameSession,
+        player1_time_remaining: timerData.player1.timeRemaining,
+        player2_time_remaining: timerData.player2.timeRemaining,
+      };
+
+      res.json({ gameSession: enrichedGameSession });
     } catch (error) {
       console.error('Get game error:', error);
       res.status(500).json({ error: 'Failed to get game' });
@@ -393,6 +402,13 @@ export class GameController {
 
       // Get updated game session
       const updatedGameSession = await GameSessionModel.findByGameCode(gameCode);
+
+      // Calculate real-time timer values
+      if (updatedGameSession) {
+        const timerData = TimerService.getTimerData(updatedGameSession);
+        updatedGameSession.player1_time_remaining = timerData.player1.timeRemaining;
+        updatedGameSession.player2_time_remaining = timerData.player2.timeRemaining;
+      }
 
       res.json({
         message: 'Move made successfully',

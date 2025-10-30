@@ -5,6 +5,7 @@ import { UserModel } from '../models/user-model.js';
 import { GameSessionModel } from '../models/game-session-model.js';
 import { MatchmakingModel } from '../models/matchmaking-model.js';
 import { EscrowService } from '../services/escrow/escrow-service.js';
+import { TimerService } from '../services/timer/timer-service.js';
 import { SocketUser, GameRoom } from '../types/index.js';
 
 export class SocketHandler {
@@ -195,9 +196,17 @@ export class SocketHandler {
           gameRoom.players.push(socketUser);
         }
 
+        // Calculate real-time timer values
+        const timerData = TimerService.getTimerData(gameSession);
+        const enrichedGameSession = {
+          ...gameSession,
+          player1_time_remaining: timerData.player1.timeRemaining,
+          player2_time_remaining: timerData.player2.timeRemaining,
+        };
+
         // Send game state to the joining player
         socket.emit('game_state', {
-          gameSession,
+          gameSession: enrichedGameSession,
           playerRole: await GameSessionModel.getPlayerRole(user.id, gameCode)
         });
 
@@ -293,9 +302,17 @@ export class SocketHandler {
           return;
         }
 
+        // Calculate real-time timer values
+        const timerData = TimerService.getTimerData(gameSession);
+        const enrichedGameSession = {
+          ...gameSession,
+          player1_time_remaining: timerData.player1.timeRemaining,
+          player2_time_remaining: timerData.player2.timeRemaining,
+        };
+
         // Broadcast updated game state to all players
         this.io.to(roomName).emit('game_state_updated', {
-          gameSession
+          gameSession: enrichedGameSession
         });
 
         // Update game room
