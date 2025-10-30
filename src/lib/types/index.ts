@@ -26,6 +26,11 @@ export interface GameSession {
   stake_tokens?: number;
   rake_bps?: number;
   escrow_status?: 'none' | 'held' | 'finalized';
+  player1_time_remaining?: number;
+  player2_time_remaining?: number;
+  player1_strikes?: number;
+  player2_strikes?: number;
+  last_move_timestamp?: Date | string | null;
   created_at: Date;
   updated_at: Date;
   started_at: Date | null;
