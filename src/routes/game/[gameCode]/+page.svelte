@@ -7,6 +7,7 @@
   import CheckersBoard from '$lib/components/game/checkers-board.svelte';
   import GameEndModal from '$lib/components/game/game-end-modal.svelte';
   import GameTimer from '$lib/components/game/game-timer.svelte';
+  import StrikeIndicator from '$lib/components/game/strike-indicator.svelte';
   import { soundManager } from '$lib/utils/sound.js';
   
   $: gameCode = $page.params.gameCode;
@@ -163,24 +164,48 @@
     <div class="bg-white border-b p-4">
       <!-- Timer Section -->
       {#if currentGame.status === 'active'}
-        <div class="max-w-md mx-auto mb-4 space-y-2">
-          <!-- Player 2 (Opponent) Timer -->
-          <GameTimer
-            timeRemaining={currentGame.player2_time_remaining || 60}
-            strikes={currentGame.player2_strikes || 0}
-            isActive={currentGame.current_turn === 'player2'}
-            playerName={playerRole === 'player1' ? 'Opponent' : 'You'}
-            isCurrentPlayer={currentGame.current_turn === 'player2' && playerRole === 'player2'}
-          />
+        <div class="max-w-md mx-auto mb-4">
+          <div class="flex items-center justify-between">
+            <!-- Your info -->
+            <div class="flex items-center gap-3">
+              <span class="font-bold text-[#6B8E7E] text-lg">
+                {playerRole === 'player1' ? 'YOU (Red)' : 'YOU (Black)'}
+              </span>
+              <StrikeIndicator 
+                strikes={playerRole === 'player1' ? (currentGame.player1_strikes || 0) : (currentGame.player2_strikes || 0)}
+                variant="compact"
+              />
+            </div>
+            
+            <!-- Your timer -->
+            <GameTimer
+              timeRemaining={playerRole === 'player1' ? (currentGame.player1_time_remaining || 60) : (currentGame.player2_time_remaining || 60)}
+              isActive={playerRole === currentGame.current_turn}
+              isCurrentPlayer={playerRole === currentGame.current_turn}
+            />
+          </div>
           
-          <!-- Player 1 (You/Opponent) Timer -->
-          <GameTimer
-            timeRemaining={currentGame.player1_time_remaining || 60}
-            strikes={currentGame.player1_strikes || 0}
-            isActive={currentGame.current_turn === 'player1'}
-            playerName={playerRole === 'player1' ? 'You' : 'Opponent'}
-            isCurrentPlayer={currentGame.current_turn === 'player1' && playerRole === 'player1'}
-          />
+          <div class="my-2 border-t border-gray-200"></div>
+          
+          <div class="flex items-center justify-between">
+            <!-- Opponent timer -->
+            <GameTimer
+              timeRemaining={playerRole === 'player1' ? (currentGame.player2_time_remaining || 60) : (currentGame.player1_time_remaining || 60)}
+              isActive={playerRole !== currentGame.current_turn}
+              isCurrentPlayer={false}
+            />
+            
+            <!-- Opponent info -->
+            <div class="flex items-center gap-3">
+              <StrikeIndicator 
+                strikes={playerRole === 'player1' ? (currentGame.player2_strikes || 0) : (currentGame.player1_strikes || 0)}
+                variant="compact"
+              />
+              <span class="font-bold text-gray-600 text-lg">
+                {playerRole === 'player1' ? 'Opponent (Black)' : 'Opponent (Red)'}
+              </span>
+            </div>
+          </div>
         </div>
       {/if}
       

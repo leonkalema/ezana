@@ -2,9 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   
   export let timeRemaining: number; // seconds
-  export let strikes: number = 0;
   export let isActive: boolean = false;
-  export let playerName: string = '';
   export let isCurrentPlayer: boolean = false;
 
   let displayTime = formatTime(timeRemaining);
@@ -23,15 +21,6 @@
     if (seconds <= 5) return 'critical';
     if (seconds <= 10) return 'warning';
     return 'normal';
-  }
-
-  function getStrikeClass(index: number, currentStrikes: number, isPlayerActive: boolean): string {
-    const hasStrike = currentStrikes > index;
-    if (hasStrike) {
-      return isPlayerActive ? 'bg-white' : 'bg-gray-800';
-    } else {
-      return isPlayerActive ? 'bg-white/30' : 'bg-gray-300';
-    }
   }
 
   // Client-side countdown when it's player's turn
@@ -63,49 +52,19 @@
   }
 </script>
 
+<!-- Simple timer display -->
 <div 
-  class="flex items-center justify-between p-3 rounded-lg transition-all duration-300"
+  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono font-bold text-lg transition-all"
   class:bg-[#6B8E7E]={isActive && isCurrentPlayer}
-  class:bg-[#E9E8E3]={!isActive || !isCurrentPlayer}
-  class:shadow-lg={isActive && isCurrentPlayer}
+  class:text-white={isActive && isCurrentPlayer && urgencyLevel === 'normal'}
+  class:text-yellow-300={isActive && isCurrentPlayer && urgencyLevel === 'warning'}
+  class:text-red-400={isActive && isCurrentPlayer && urgencyLevel === 'critical'}
+  class:bg-gray-100={!isActive || !isCurrentPlayer}
+  class:text-gray-700={!isActive || !isCurrentPlayer}
   class:animate-pulse={urgencyLevel === 'critical' && isActive}
 >
-  <!-- Player name and strikes -->
-  <div class="flex flex-col">
-    <span 
-      class="font-semibold text-sm"
-      class:text-white={isActive && isCurrentPlayer}
-      class:text-gray-800={!isActive || !isCurrentPlayer}
-    >
-      {playerName}
-    </span>
-    <div class="flex gap-1 mt-1">
-      {#each Array(3) as _, i}
-        <div class="w-2 h-2 rounded-full transition-all {getStrikeClass(i, strikes, isActive && isCurrentPlayer)}"></div>
-      {/each}
-    </div>
-  </div>
-
-  <!-- Timer display -->
-  <div 
-    class="text-2xl font-mono font-bold tracking-wider transition-all"
-    class:text-white={isActive && isCurrentPlayer && urgencyLevel === 'normal'}
-    class:text-yellow-300={isActive && isCurrentPlayer && urgencyLevel === 'warning'}
-    class:text-red-400={isActive && isCurrentPlayer && urgencyLevel === 'critical'}
-    class:text-gray-800={!isActive || !isCurrentPlayer}
-  >
-    {displayTime}
-  </div>
-
-  <!-- Activity indicator -->
-  {#if isActive && isCurrentPlayer}
-    <div class="flex flex-col items-center gap-1">
-      <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-      <span class="text-xs text-white/80 font-medium">ACTIVE</span>
-    </div>
-  {:else}
-    <div class="w-12"></div>
-  {/if}
+  <span>⏱️</span>
+  <span>{displayTime}</span>
 </div>
 
 <style>
