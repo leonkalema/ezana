@@ -32,6 +32,7 @@ export class GameSessionModel {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
              winner_id, stake_tokens, rake_bps, escrow_status,
+             player1_time_remaining, player2_time_remaining, player1_strikes, player2_strikes, last_move_timestamp,
              created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE id = ?
@@ -57,6 +58,7 @@ export class GameSessionModel {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
              winner_id, stake_tokens, rake_bps, escrow_status,
+             player1_time_remaining, player2_time_remaining, player1_strikes, player2_strikes, last_move_timestamp,
              created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE game_code = ?
@@ -128,6 +130,7 @@ export class GameSessionModel {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
              winner_id, stake_tokens, rake_bps, escrow_status,
+             player1_time_remaining, player2_time_remaining, player1_strikes, player2_strikes, last_move_timestamp,
              created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE (player1_id = ? OR player2_id = ?) AND status IN ('waiting', 'active')
@@ -154,6 +157,7 @@ export class GameSessionModel {
     const query = `
       SELECT id, game_code, player1_id, player2_id, game_state, current_turn, status,
              winner_id, stake_tokens, rake_bps, escrow_status,
+             player1_time_remaining, player2_time_remaining, player1_strikes, player2_strikes, last_move_timestamp,
              created_at, updated_at, started_at, ended_at
       FROM game_sessions
       WHERE status = 'waiting' AND player2_id IS NULL

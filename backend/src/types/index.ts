@@ -39,6 +39,11 @@ export interface GameSession {
   stake_tokens?: number | null;
   rake_bps?: number | null;
   escrow_status?: 'none' | 'held' | 'released' | 'refunded' | null;
+  player1_time_remaining?: number | null;
+  player2_time_remaining?: number | null;
+  player1_strikes?: number | null;
+  player2_strikes?: number | null;
+  last_move_timestamp?: Date | null;
   created_at: Date;
   updated_at: Date;
   started_at: Date | null;
@@ -51,6 +56,8 @@ export interface GameMove {
   player_id: number;
   move_data: CheckersMove;
   move_number: number;
+  is_auto_move?: boolean | null;
+  time_used_seconds?: number | null;
   created_at: Date;
 }
 
