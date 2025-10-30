@@ -9,9 +9,9 @@
     {#each Array(maxStrikes) as _, i}
       <div 
         class="w-2.5 h-2.5 rounded-full transition-all duration-300"
-        class:bg-red-500={strikes > i}
-        class:bg-gray-300={strikes <= i}
-        class:shadow-sm={strikes > i}
+        class:bg-red-500={i < strikes}
+        class:bg-gray-300={i >= strikes}
+        class:shadow-sm={i < strikes}
       ></div>
     {/each}
   </div>
@@ -23,9 +23,9 @@
         {#each Array(maxStrikes) as _, i}
           <div 
             class="w-3 h-3 rounded-full transition-all duration-300"
-            class:bg-red-500={strikes > i}
-            class:bg-gray-300={strikes <= i}
-            class:shadow-md={strikes > i}
+            class:bg-red-500={i < strikes}
+            class:bg-gray-300={i >= strikes}
+            class:shadow-md={i < strikes}
           ></div>
         {/each}
       </div>
