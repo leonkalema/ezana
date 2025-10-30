@@ -7,6 +7,7 @@ import { CreateGameInput, JoinGameInput, GameMoveInput } from '../validation/sch
 import { applyMovePath } from '../game/move-utils.js';
 import { AuthenticatedRequest } from '../types/index.js';
 import { EscrowService } from '../services/escrow/escrow-service.js';
+import { MoveProcessor } from '../services/game/move-processor.js';
 
 export class GameController {
   static async createGame(req: AuthenticatedRequest<{}, {}, CreateGameInput>, res: Response): Promise<void> {
@@ -102,6 +103,9 @@ export class GameController {
         res.status(409).json({ error: 'Failed to join game' });
         return;
       }
+
+      // Initialize timers now that both players are present
+      await MoveProcessor.initializeTimers(gameCode);
 
       res.json({
         message: 'Joined game successfully',
@@ -222,6 +226,33 @@ export class GameController {
         return;
       }
 
+      // Check for timeout and handle auto-move if needed
+      const timeoutResult = await MoveProcessor.checkTimeout(gameSession, playerRole);
+      
+      if (timeoutResult.timeoutOccurred) {
+        if (timeoutResult.gameOver) {
+          // Player has 3 strikes - they lose
+          await GameSessionModel.endGame(gameCode, timeoutResult.winnerId, 'completed');
+          await EscrowService.finalize(gameCode);
+          
+          const finalGameSession = await GameSessionModel.findByGameCode(gameCode);
+          res.status(200).json({
+            message: 'Game over - maximum timeouts reached',
+            gameSession: finalGameSession,
+            timeout: true,
+            strikes: timeoutResult.strikes
+          });
+          return;
+        }
+        
+        if (timeoutResult.autoMove) {
+          // Time expired - use auto-move instead of player's move
+          console.log(`Player ${playerRole} timed out, using auto-move. Strikes: ${timeoutResult.strikes}`);
+          move.from = timeoutResult.autoMove.from;
+          move.to = timeoutResult.autoMove.to;
+        }
+      }
+
       // Determine if a multi-jump path was provided
       const isPlayer1 = playerRole === 'player1';
       const path = move.path && move.path.length >= 2 ? move.path : undefined;
@@ -330,10 +361,15 @@ export class GameController {
       // Update game session
       await GameSessionModel.updateGameState(gameCode, updatedState, newCurrentTurn);
 
-      // Save move to history (consolidated)
-      const moveNumber = await GameMoveModel.getLastMoveNumber(gameSession.id) + 1;
-      const savedMove = { ...moveWithTimestamp } as any;
-      await GameMoveModel.create(gameSession.id, userId, savedMove, moveNumber);
+      // Process timer update (mark if this was an auto-move)
+      const isAutoMove = timeoutResult.autoMove !== null;
+      await MoveProcessor.processMove(gameSession, userId, playerRole, move, isAutoMove);
+
+      // Get fresh game session with updated timer
+      const freshGameSession = await GameSessionModel.findByGameCode(gameCode);
+      if (!freshGameSession) {
+        throw new Error('Game session not found after move');
+      }
 
       // Check if game ended
       if (updatedState.gameStatus === 'completed') {
@@ -361,7 +397,7 @@ export class GameController {
       res.json({
         message: 'Move made successfully',
         gameSession: updatedGameSession,
-        move: savedMove
+        move: moveWithTimestamp
       });
     } catch (error) {
       console.error('Make move error:', error);
