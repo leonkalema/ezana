@@ -162,39 +162,6 @@
     
     <!-- Game Info & Turn Indicator -->
     <div class="bg-white border-b p-4">
-      <!-- Timer Section - Compact Single Line -->
-      {#if currentGame.status === 'active'}
-        <div class="flex items-center justify-between text-sm px-2 py-1">
-          <!-- You -->
-          <div class="flex items-center gap-1.5">
-            <span class="font-semibold text-[#6B8E7E]">YOU</span>
-            <StrikeIndicator 
-              strikes={playerRole === 'player1' ? (currentGame.player1_strikes || 0) : (currentGame.player2_strikes || 0)}
-              variant="compact"
-            />
-            <GameTimer
-              timeRemaining={playerRole === 'player1' ? (currentGame.player1_time_remaining || 60) : (currentGame.player2_time_remaining || 60)}
-              isActive={playerRole === currentGame.current_turn}
-              isCurrentPlayer={playerRole === currentGame.current_turn}
-            />
-          </div>
-          
-          <!-- Opponent -->
-          <div class="flex items-center gap-1.5">
-            <GameTimer
-              timeRemaining={playerRole === 'player1' ? (currentGame.player2_time_remaining || 60) : (currentGame.player1_time_remaining || 60)}
-              isActive={playerRole !== currentGame.current_turn}
-              isCurrentPlayer={false}
-            />
-            <StrikeIndicator 
-              strikes={playerRole === 'player1' ? (currentGame.player2_strikes || 0) : (currentGame.player1_strikes || 0)}
-              variant="compact"
-            />
-            <span class="font-semibold text-gray-600">OPP</span>
-          </div>
-        </div>
-      {/if}
-      
       <!-- Stakes Info -->
       {#if currentGame.stake_tokens && currentGame.stake_tokens > 0}
         <div class="text-center mb-4 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
@@ -317,6 +284,41 @@
           </button>
         </div>
       {:else}
+        <!-- Timer Section - Right Above Board -->
+        {#if currentGame.status === 'active'}
+          <div class="w-full max-w-2xl mx-auto mb-2">
+            <div class="flex items-center justify-between text-sm px-2 py-1 bg-white rounded-lg shadow-sm">
+              <!-- You -->
+              <div class="flex items-center gap-1.5">
+                <span class="font-semibold text-[#6B8E7E]">YOU</span>
+                <StrikeIndicator 
+                  strikes={playerRole === 'player1' ? (currentGame.player1_strikes || 0) : (currentGame.player2_strikes || 0)}
+                  variant="compact"
+                />
+                <GameTimer
+                  timeRemaining={playerRole === 'player1' ? (currentGame.player1_time_remaining || 60) : (currentGame.player2_time_remaining || 60)}
+                  isActive={playerRole === currentGame.current_turn}
+                  isCurrentPlayer={playerRole === currentGame.current_turn}
+                />
+              </div>
+              
+              <!-- Opponent -->
+              <div class="flex items-center gap-1.5">
+                <GameTimer
+                  timeRemaining={playerRole === 'player1' ? (currentGame.player2_time_remaining || 60) : (currentGame.player1_time_remaining || 60)}
+                  isActive={playerRole !== currentGame.current_turn}
+                  isCurrentPlayer={false}
+                />
+                <StrikeIndicator 
+                  strikes={playerRole === 'player1' ? (currentGame.player2_strikes || 0) : (currentGame.player1_strikes || 0)}
+                  variant="compact"
+                />
+                <span class="font-semibold text-gray-600">OPP</span>
+              </div>
+            </div>
+          </div>
+        {/if}
+        
         <CheckersBoard />
       {/if}
     </div>
