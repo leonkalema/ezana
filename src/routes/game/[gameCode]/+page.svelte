@@ -6,6 +6,7 @@
   import { onMount, onDestroy } from 'svelte';
   import CheckersBoard from '$lib/components/game/checkers-board.svelte';
   import GameEndModal from '$lib/components/game/game-end-modal.svelte';
+  import GameTimer from '$lib/components/game/game-timer.svelte';
   import { soundManager } from '$lib/utils/sound.js';
   
   $: gameCode = $page.params.gameCode;
@@ -160,6 +161,29 @@
     
     <!-- Game Info & Turn Indicator -->
     <div class="bg-white border-b p-4">
+      <!-- Timer Section -->
+      {#if currentGame.status === 'active'}
+        <div class="max-w-md mx-auto mb-4 space-y-2">
+          <!-- Player 2 (Opponent) Timer -->
+          <GameTimer
+            timeRemaining={currentGame.player2_time_remaining || 60}
+            strikes={currentGame.player2_strikes || 0}
+            isActive={currentGame.current_turn === 'player2'}
+            playerName={playerRole === 'player1' ? 'Opponent' : 'You'}
+            isCurrentPlayer={currentGame.current_turn === 'player2' && playerRole === 'player2'}
+          />
+          
+          <!-- Player 1 (You/Opponent) Timer -->
+          <GameTimer
+            timeRemaining={currentGame.player1_time_remaining || 60}
+            strikes={currentGame.player1_strikes || 0}
+            isActive={currentGame.current_turn === 'player1'}
+            playerName={playerRole === 'player1' ? 'You' : 'Opponent'}
+            isCurrentPlayer={currentGame.current_turn === 'player1' && playerRole === 'player1'}
+          />
+        </div>
+      {/if}
+      
       <!-- Stakes Info -->
       {#if currentGame.stake_tokens && currentGame.stake_tokens > 0}
         <div class="text-center mb-4 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
