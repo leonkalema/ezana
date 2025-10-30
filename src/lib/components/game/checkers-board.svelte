@@ -1,6 +1,8 @@
 <script lang="ts">
   import { gameStore } from '$lib/stores/game.js';
   import type { Position, CheckersPiece } from '$lib/types/index.js';
+  import GameTimer from './game-timer.svelte';
+  import StrikeIndicator from './strike-indicator.svelte';
   
   $: ({ currentGame, playerRole, selectedSquare, validMoves, isMyTurn } = $gameStore);
   $: board = currentGame?.game_state.board || [];
@@ -43,17 +45,39 @@
   <!-- Game Status -->
   <div class="text-center mb-4">
     {#if currentGame}
-      <div class="flex items-center justify-center space-x-6 text-sm mb-3">
-        <div class="flex items-center space-x-2 {playerRole === 'player1' && isMyTurn ? 'bg-blue-100 px-3 py-1 rounded-full border-2 border-blue-400' : ''}">
-          <div class="w-4 h-4 bg-red-500 rounded-full {playerRole === 'player1' && isMyTurn ? 'animate-pulse' : ''}"></div>
+      <div class="flex items-center justify-center space-x-4 text-sm mb-2">
+        <!-- Red Player -->
+        <div class="flex items-center space-x-2 {playerRole === 'player1' && isMyTurn ? 'bg-blue-100 px-2 py-1 rounded-lg border-2 border-blue-400' : ''}">
+          <div class="w-3 h-3 bg-red-500 rounded-full {playerRole === 'player1' && isMyTurn ? 'animate-pulse' : ''}"></div>
           <span class="font-medium">Red: {currentGame.game_state.capturedPieces.black}</span>
           {#if playerRole === 'player1'}
             <span class="text-xs text-blue-600 font-bold">(YOU)</span>
           {/if}
+          <StrikeIndicator 
+            strikes={currentGame.player1_strikes || 0}
+            variant="compact"
+          />
+          <GameTimer
+            timeRemaining={currentGame.player1_time_remaining || 60}
+            isActive={currentGame.current_turn === 'player1'}
+            isCurrentPlayer={currentGame.current_turn === 'player1' && playerRole === 'player1'}
+          />
         </div>
+        
         <div class="text-gray-400 font-bold">VS</div>
-        <div class="flex items-center space-x-2 {playerRole === 'player2' && isMyTurn ? 'bg-blue-100 px-3 py-1 rounded-full border-2 border-blue-400' : ''}">
-          <div class="w-4 h-4 bg-gray-800 rounded-full {playerRole === 'player2' && isMyTurn ? 'animate-pulse' : ''}"></div>
+        
+        <!-- Black Player -->
+        <div class="flex items-center space-x-2 {playerRole === 'player2' && isMyTurn ? 'bg-blue-100 px-2 py-1 rounded-lg border-2 border-blue-400' : ''}">
+          <GameTimer
+            timeRemaining={currentGame.player2_time_remaining || 60}
+            isActive={currentGame.current_turn === 'player2'}
+            isCurrentPlayer={currentGame.current_turn === 'player2' && playerRole === 'player2'}
+          />
+          <StrikeIndicator 
+            strikes={currentGame.player2_strikes || 0}
+            variant="compact"
+          />
+          <div class="w-3 h-3 bg-gray-800 rounded-full {playerRole === 'player2' && isMyTurn ? 'animate-pulse' : ''}"></div>
           <span class="font-medium">Black: {currentGame.game_state.capturedPieces.red}</span>
           {#if playerRole === 'player2'}
             <span class="text-xs text-blue-600 font-bold">(YOU)</span>
