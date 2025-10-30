@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { gameStore } from '$lib/stores/game.js';
   
   export let timeRemaining: number; // seconds
   export let isActive: boolean = false;
@@ -7,9 +8,27 @@
 
   let displayTime = formatTime(timeRemaining);
   let interval: ReturnType<typeof setInterval> | null = null;
+  let hasTriggeredTimeout = false;
   
   $: urgencyLevel = getUrgencyLevel(timeRemaining);
   $: displayTime = formatTime(timeRemaining);
+  
+  // Trigger timeout when time reaches 0
+  $: if (timeRemaining <= 0 && isActive && isCurrentPlayer && !hasTriggeredTimeout) {
+    hasTriggeredTimeout = true;
+    handleTimeout();
+  }
+  
+  // Reset flag when timer restarts
+  $: if (timeRemaining > 0) {
+    hasTriggeredTimeout = false;
+  }
+  
+  async function handleTimeout() {
+    console.log('⏰ Timer expired! Triggering auto-move...');
+    // Trigger auto-move through game store
+    await gameStore.handleTimeout();
+  }
 
   function formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);

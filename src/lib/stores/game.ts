@@ -376,6 +376,59 @@ function createGameStore() {
       update(state => ({ ...state, error: null }));
     },
 
+    async handleTimeout(): Promise<void> {
+      const currentState = get(gameStore);
+      
+      if (!currentState.currentGame || !currentState.playerRole) {
+        console.error('Cannot handle timeout: no active game');
+        return;
+      }
+
+      console.log('⏰ Handling timeout for', currentState.playerRole);
+      
+      try {
+        // Make a dummy move - the backend will detect timeout and generate auto-move
+        const response = await apiClient.makeMove({
+          gameCode: currentState.currentGame.game_code,
+          move: {
+            from: { row: 0, col: 0 }, // Dummy move - backend will replace with auto-move
+            to: { row: 0, col: 0 }
+          }
+        });
+
+        if (response.gameSession) {
+          update(state => ({
+            ...state,
+            currentGame: response.gameSession,
+            selectedSquare: null,
+            validMoves: []
+          }));
+
+          // Show notification about auto-move
+          const strikes = (response as any).strikes || 0;
+          notificationStore.warning(`⏱️ Time's up! Auto-move made. Strikes: ${strikes}/3`, 5000);
+          soundManager.playOpponentMove();
+        }
+      } catch (error: any) {
+        console.error('Timeout handling error:', error);
+        
+        const errorData = error.response?.data;
+        if (errorData?.timeout) {
+          // Game ended due to 3 strikes
+          notificationStore.error('❌ 3 strikes! You lost by timeout.', 8000);
+          
+          if (errorData.gameSession) {
+            update(state => ({
+              ...state,
+              currentGame: errorData.gameSession
+            }));
+          }
+        } else {
+          notificationStore.error('Failed to process timeout', 3000);
+        }
+      }
+    },
+
     reset(): void {
       set(initialState);
     }

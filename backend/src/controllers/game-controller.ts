@@ -411,9 +411,11 @@ export class GameController {
       }
 
       res.json({
-        message: 'Move made successfully',
+        message: isAutoMove ? 'Auto-move made due to timeout' : 'Move made successfully',
         gameSession: updatedGameSession,
-        move: moveWithTimestamp
+        move: moveWithTimestamp,
+        autoMove: isAutoMove,
+        strikes: playerRole === 'player1' ? updatedGameSession?.player1_strikes : updatedGameSession?.player2_strikes
       });
     } catch (error) {
       console.error('Make move error:', error);
