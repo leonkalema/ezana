@@ -54,7 +54,7 @@
 
 <!-- Simple timer display -->
 <div 
-  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono font-bold text-lg transition-all"
+  class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono font-bold text-sm transition-all"
   class:bg-[#6B8E7E]={isActive && isCurrentPlayer}
   class:text-white={isActive && isCurrentPlayer && urgencyLevel === 'normal'}
   class:text-yellow-300={isActive && isCurrentPlayer && urgencyLevel === 'warning'}
@@ -63,7 +63,7 @@
   class:text-gray-700={!isActive || !isCurrentPlayer}
   class:animate-pulse={urgencyLevel === 'critical' && isActive}
 >
-  <span>⏱️</span>
+  <span class="text-xs">⏱️</span>
   <span>{displayTime}</span>
 </div>
 

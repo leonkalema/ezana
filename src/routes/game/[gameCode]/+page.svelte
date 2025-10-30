@@ -162,22 +162,16 @@
     
     <!-- Game Info & Turn Indicator -->
     <div class="bg-white border-b p-4">
-      <!-- Timer Section -->
+      <!-- Timer Section - Compact Single Line -->
       {#if currentGame.status === 'active'}
-        <div class="max-w-md mx-auto mb-4">
-          <div class="flex items-center justify-between">
-            <!-- Your info -->
-            <div class="flex items-center gap-3">
-              <span class="font-bold text-[#6B8E7E] text-lg">
-                {playerRole === 'player1' ? 'YOU (Red)' : 'YOU (Black)'}
-              </span>
-              <StrikeIndicator 
-                strikes={playerRole === 'player1' ? (currentGame.player1_strikes || 0) : (currentGame.player2_strikes || 0)}
-                variant="compact"
-              />
-            </div>
-            
-            <!-- Your timer -->
+        <div class="flex items-center justify-between text-sm px-2 py-1">
+          <!-- You -->
+          <div class="flex items-center gap-1.5">
+            <span class="font-semibold text-[#6B8E7E]">YOU</span>
+            <StrikeIndicator 
+              strikes={playerRole === 'player1' ? (currentGame.player1_strikes || 0) : (currentGame.player2_strikes || 0)}
+              variant="compact"
+            />
             <GameTimer
               timeRemaining={playerRole === 'player1' ? (currentGame.player1_time_remaining || 60) : (currentGame.player2_time_remaining || 60)}
               isActive={playerRole === currentGame.current_turn}
@@ -185,26 +179,18 @@
             />
           </div>
           
-          <div class="my-2 border-t border-gray-200"></div>
-          
-          <div class="flex items-center justify-between">
-            <!-- Opponent timer -->
+          <!-- Opponent -->
+          <div class="flex items-center gap-1.5">
             <GameTimer
               timeRemaining={playerRole === 'player1' ? (currentGame.player2_time_remaining || 60) : (currentGame.player1_time_remaining || 60)}
               isActive={playerRole !== currentGame.current_turn}
               isCurrentPlayer={false}
             />
-            
-            <!-- Opponent info -->
-            <div class="flex items-center gap-3">
-              <StrikeIndicator 
-                strikes={playerRole === 'player1' ? (currentGame.player2_strikes || 0) : (currentGame.player1_strikes || 0)}
-                variant="compact"
-              />
-              <span class="font-bold text-gray-600 text-lg">
-                {playerRole === 'player1' ? 'Opponent (Black)' : 'Opponent (Red)'}
-              </span>
-            </div>
+            <StrikeIndicator 
+              strikes={playerRole === 'player1' ? (currentGame.player2_strikes || 0) : (currentGame.player1_strikes || 0)}
+              variant="compact"
+            />
+            <span class="font-semibold text-gray-600">OPP</span>
           </div>
         </div>
       {/if}
