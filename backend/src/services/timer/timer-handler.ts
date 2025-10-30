@@ -57,9 +57,23 @@ export class TimerHandler {
     game: GameSession,
     currentPlayer: 'player1' | 'player2'
   ): Promise<TimerHandlerResult> {
+    let player1TimeRemaining = game.player1_time_remaining ?? 60;
+    let player2TimeRemaining = game.player2_time_remaining ?? 60;
+    
+    // Calculate elapsed time since last move for current player
+    if (game.last_move_timestamp && game.status === 'active') {
+      const elapsedSeconds = TimerService.calculateTimeUsed(game.last_move_timestamp);
+      
+      if (game.current_turn === 'player1') {
+        player1TimeRemaining = Math.max(0, player1TimeRemaining - elapsedSeconds);
+      } else {
+        player2TimeRemaining = Math.max(0, player2TimeRemaining - elapsedSeconds);
+      }
+    }
+    
     const timerState: TimerState = {
-      player1TimeRemaining: game.player1_time_remaining ?? 60,
-      player2TimeRemaining: game.player2_time_remaining ?? 60,
+      player1TimeRemaining,
+      player2TimeRemaining,
       player1Strikes: game.player1_strikes ?? 0,
       player2Strikes: game.player2_strikes ?? 0,
       currentTurn: game.current_turn,
