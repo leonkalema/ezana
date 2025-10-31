@@ -201,21 +201,13 @@ export class GameController {
 
   static async makeMove(req: AuthenticatedRequest<{}, {}, GameMoveInput>, res: Response): Promise<void> {
     try {
-      console.log('📥 MOVE REQUEST RECEIVED:', {
-        timestamp: new Date().toISOString(),
-        body: req.body,
-        userId: req.user?.id
-      });
-      
       const userId = req.user?.id;
       if (!userId) {
-        console.log('❌ No user ID - unauthorized');
         res.status(401).json({ error: 'User not authenticated' });
         return;
       }
 
       const { gameCode, move } = req.body;
-      console.log('🎮 Processing move:', { gameCode, move, userId });
 
       // Get game session
       const gameSession = await GameSessionModel.findByGameCode(gameCode);
@@ -244,20 +236,11 @@ export class GameController {
       }
 
       // Check for timeout and handle auto-move if needed
-      console.log('🔍 Checking timeout for:', { gameCode, playerRole, moveFrom: move.from, moveTo: move.to });
-      
       const timeoutResult = await MoveProcessor.checkTimeout(gameSession, playerRole);
       
       if (timeoutResult.timeoutOccurred) {
-        console.log('⏰ TIMEOUT OCCURRED:', { 
-          gameOver: timeoutResult.gameOver, 
-          strikes: timeoutResult.strikes,
-          hasAutoMove: !!timeoutResult.autoMove 
-        });
-        
         if (timeoutResult.gameOver) {
           // Player has 3 strikes - they lose
-          console.log('💀 3 STRIKES - GAME OVER');
           await GameSessionModel.endGame(gameCode, timeoutResult.winnerId, 'completed');
           await EscrowService.finalize(gameCode);
           
@@ -273,17 +256,10 @@ export class GameController {
         
         if (timeoutResult.autoMove) {
           // Time expired - use auto-move instead of player's move
-          console.log(`🔄 REPLACING MOVE - Player ${playerRole} timed out, using auto-move:`, {
-            original: { from: move.from, to: move.to },
-            autoMove: { from: timeoutResult.autoMove.from, to: timeoutResult.autoMove.to },
-            strikes: timeoutResult.strikes
-          });
           move.from = timeoutResult.autoMove.from;
           move.to = timeoutResult.autoMove.to;
           move.path = undefined; // Clear any path from dummy move
         }
-      } else {
-        console.log('✅ No timeout detected, processing normal move');
       }
 
       // Determine if a multi-jump path was provided (AFTER timeout replacement)
@@ -437,7 +413,6 @@ export class GameController {
       // Broadcast move to all players in the game room via Socket.IO
       const io = req.app.get('io');
       if (io && updatedGameSession) {
-        console.log('📡 Broadcasting move to game room:', gameCode);
         io.to(`game:${gameCode}`).emit('game_state_updated', {
           gameSession: updatedGameSession,
           move: moveWithTimestamp,
@@ -449,13 +424,6 @@ export class GameController {
       const currentStrikes = playerRole === 'player1' 
         ? updatedGameSession?.player1_strikes ?? 0
         : updatedGameSession?.player2_strikes ?? 0;
-      
-      console.log('📤 Sending response:', {
-        isAutoMove,
-        currentStrikes,
-        player1Strikes: updatedGameSession?.player1_strikes,
-        player2Strikes: updatedGameSession?.player2_strikes
-      });
 
       res.json({
         message: isAutoMove ? 'Auto-move made due to timeout' : 'Move made successfully',

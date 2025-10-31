@@ -2,9 +2,6 @@
   export let strikes: number = 0;
   export let maxStrikes: number = 3;
   export let variant: 'compact' | 'detailed' = 'compact';
-  
-  // Debug logging
-  $: console.log('🎯 StrikeIndicator:', { strikes, maxStrikes, totalDots: maxStrikes });
 </script>
 
 {#if variant === 'compact'}

@@ -61,8 +61,6 @@ export class TimerModel {
     gameCode: string,
     player: 'player1' | 'player2'
   ): Promise<void> {
-    console.log(`💥 ADDING STRIKE - Player: ${player}, Game: ${gameCode}`);
-    
     const query = `
       UPDATE game_sessions
       SET 
@@ -72,17 +70,7 @@ export class TimerModel {
       WHERE game_code = ?
     `;
 
-    const result = await db.query(query, [gameCode]);
-    console.log(`💥 STRIKE UPDATE RESULT:`, result);
-    
-    // Verify the update
-    const verifyQuery = `
-      SELECT player1_strikes, player2_strikes, last_move_timestamp
-      FROM game_sessions 
-      WHERE game_code = ?
-    `;
-    const verification = await db.queryOne<any>(verifyQuery, [gameCode]);
-    console.log(`💥 STRIKES AFTER UPDATE:`, verification);
+    await db.query(query, [gameCode]);
   }
 
   /**
