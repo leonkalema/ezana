@@ -207,7 +207,7 @@ export class GameController {
         return;
       }
 
-      const { gameCode, move } = req.body;
+      const { gameCode, move, isTimeoutCheck } = req.body;
 
       // Get game session
       const gameSession = await GameSessionModel.findByGameCode(gameCode);
@@ -260,6 +260,15 @@ export class GameController {
           move.to = timeoutResult.autoMove.to;
           move.path = undefined; // Clear any path from dummy move
         }
+      } else if (isTimeoutCheck) {
+        // Frontend sent timeout check but no timeout detected on backend
+        res.status(400).json({ 
+          error: 'Timer has not expired yet',
+          timeRemaining: playerRole === 'player1' 
+            ? gameSession.player1_time_remaining 
+            : gameSession.player2_time_remaining
+        });
+        return;
       }
 
       // Determine if a multi-jump path was provided (AFTER timeout replacement)

@@ -48,7 +48,8 @@ export const gameMoveSchema = z.object({
     isKingMove: z.boolean().optional(),
     // Optional multi-jump path, must start with `from` and end with `to`
     path: z.array(positionSchema).min(2).optional()
-  })
+  }),
+  isTimeoutCheck: z.boolean().optional() // Flag to indicate timeout request
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

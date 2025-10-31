@@ -389,11 +389,12 @@ function createGameStore() {
         move: {
           from: { row: 0, col: 0 }, // Dummy move - backend will replace with auto-move
           to: { row: 0, col: 0 }
-        }
+        },
+        isTimeoutCheck: true // Flag to indicate this is a timeout request
       };
       
       try {
-        // Make a dummy move - the backend will detect timeout and generate auto-move
+        // Make a timeout request - the backend will detect timeout and generate auto-move
         const response = await apiClient.makeMove(requestPayload);
 
         if (response.gameSession) {
@@ -423,6 +424,10 @@ function createGameStore() {
               currentGame: errorData.gameSession
             }));
           }
+        } else if (errorData?.error?.includes('Timer has not expired yet')) {
+          // Race condition - frontend thought time was up but backend says it's not
+          console.log('Timer check early, still has time:', errorData.timeRemaining);
+          // Silently ignore - the timer will try again when it actually expires
         } else {
           notificationStore.error('Failed to process timeout', 3000);
         }
