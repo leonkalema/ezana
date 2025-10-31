@@ -445,12 +445,24 @@ export class GameController {
         });
       }
 
+      // Get strikes from fresh game session after all updates
+      const currentStrikes = playerRole === 'player1' 
+        ? updatedGameSession?.player1_strikes ?? 0
+        : updatedGameSession?.player2_strikes ?? 0;
+      
+      console.log('📤 Sending response:', {
+        isAutoMove,
+        currentStrikes,
+        player1Strikes: updatedGameSession?.player1_strikes,
+        player2Strikes: updatedGameSession?.player2_strikes
+      });
+
       res.json({
         message: isAutoMove ? 'Auto-move made due to timeout' : 'Move made successfully',
         gameSession: updatedGameSession,
         move: moveWithTimestamp,
         autoMove: isAutoMove,
-        strikes: playerRole === 'player1' ? updatedGameSession?.player1_strikes : updatedGameSession?.player2_strikes
+        strikes: currentStrikes
       });
     } catch (error) {
       console.error('Make move error:', error);

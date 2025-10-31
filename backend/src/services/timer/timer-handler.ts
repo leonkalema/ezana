@@ -166,13 +166,14 @@ export class TimerHandler {
     // Add strike to player
     await TimerModel.addStrike(game.game_code, currentPlayer);
     
-    console.log('✅ AUTO-MOVE SUCCESS - Strike added');
+    const newStrikes = timeoutResult.strikesUsed; // This is already the incremented count
+    console.log('✅ AUTO-MOVE SUCCESS - Strike added, new total:', newStrikes);
 
     return {
       shouldContinue: true,
       autoMove,
       timeoutOccurred: true,
-      strikes: timeoutResult.strikesUsed,
+      strikes: newStrikes,
       gameOver: false,
       winnerId: null,
     };
