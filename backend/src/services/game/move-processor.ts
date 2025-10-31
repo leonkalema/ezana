@@ -30,7 +30,10 @@ export class MoveProcessor {
   ): Promise<ProcessedMoveResult> {
     try {
       // Update timer for the player who just moved
-      await TimerHandler.processMove(game, playerRole);
+      // SKIP for auto-moves - timer already updated by TimerHandler during timeout
+      if (!isAutoMove) {
+        await TimerHandler.processMove(game, playerRole);
+      }
 
       // Save move to database
       const moveNumber = game.game_state.moveHistory.length + 1;

@@ -67,7 +67,8 @@ export class TimerModel {
       UPDATE game_sessions
       SET 
         ${player}_strikes = COALESCE(${player}_strikes, 0) + 1,
-        ${player}_time_remaining = 60
+        ${player}_time_remaining = 60,
+        last_move_timestamp = CURRENT_TIMESTAMP
       WHERE game_code = ?
     `;
 
@@ -76,7 +77,7 @@ export class TimerModel {
     
     // Verify the update
     const verifyQuery = `
-      SELECT player1_strikes, player2_strikes 
+      SELECT player1_strikes, player2_strikes, last_move_timestamp
       FROM game_sessions 
       WHERE game_code = ?
     `;

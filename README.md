@@ -303,3 +303,5 @@ npm install && npm run build && \
 cd backend && npm install && npm run build && \
 cd .. && \
 pm2 restart all
+
+git pull && npm run build && cd backend && npm run build && pm2 restart all
