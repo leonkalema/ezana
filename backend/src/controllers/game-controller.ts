@@ -236,11 +236,20 @@ export class GameController {
       }
 
       // Check for timeout and handle auto-move if needed
+      console.log('🔍 Checking timeout for:', { gameCode, playerRole, moveFrom: move.from, moveTo: move.to });
+      
       const timeoutResult = await MoveProcessor.checkTimeout(gameSession, playerRole);
       
       if (timeoutResult.timeoutOccurred) {
+        console.log('⏰ TIMEOUT OCCURRED:', { 
+          gameOver: timeoutResult.gameOver, 
+          strikes: timeoutResult.strikes,
+          hasAutoMove: !!timeoutResult.autoMove 
+        });
+        
         if (timeoutResult.gameOver) {
           // Player has 3 strikes - they lose
+          console.log('💀 3 STRIKES - GAME OVER');
           await GameSessionModel.endGame(gameCode, timeoutResult.winnerId, 'completed');
           await EscrowService.finalize(gameCode);
           
@@ -256,11 +265,17 @@ export class GameController {
         
         if (timeoutResult.autoMove) {
           // Time expired - use auto-move instead of player's move
-          console.log(`Player ${playerRole} timed out, using auto-move. Strikes: ${timeoutResult.strikes}`);
+          console.log(`🔄 REPLACING MOVE - Player ${playerRole} timed out, using auto-move:`, {
+            original: { from: move.from, to: move.to },
+            autoMove: { from: timeoutResult.autoMove.from, to: timeoutResult.autoMove.to },
+            strikes: timeoutResult.strikes
+          });
           move.from = timeoutResult.autoMove.from;
           move.to = timeoutResult.autoMove.to;
           move.path = undefined; // Clear any path from dummy move
         }
+      } else {
+        console.log('✅ No timeout detected, processing normal move');
       }
 
       // Determine if a multi-jump path was provided (AFTER timeout replacement)

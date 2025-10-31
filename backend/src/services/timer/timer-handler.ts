@@ -69,6 +69,28 @@ export class TimerHandler {
       } else {
         player2TimeRemaining = Math.max(0, player2TimeRemaining - elapsedSeconds);
       }
+      
+      console.log('🕒 TIMEOUT CHECK:', {
+        gameCode: game.game_code,
+        currentPlayer,
+        currentTurn: game.current_turn,
+        lastMoveTimestamp: game.last_move_timestamp,
+        elapsedSeconds,
+        storedP1Time: game.player1_time_remaining,
+        storedP2Time: game.player2_time_remaining,
+        calculatedP1Time: player1TimeRemaining,
+        calculatedP2Time: player2TimeRemaining,
+        willTimeout: (currentPlayer === 'player1' ? player1TimeRemaining : player2TimeRemaining) <= 0
+      });
+    } else {
+      console.log('🕒 TIMEOUT CHECK - NO TIMESTAMP:', {
+        gameCode: game.game_code,
+        currentPlayer,
+        lastMoveTimestamp: game.last_move_timestamp,
+        status: game.status,
+        storedP1Time: game.player1_time_remaining,
+        storedP2Time: game.player2_time_remaining
+      });
     }
     
     const timerState: TimerState = {
@@ -81,6 +103,14 @@ export class TimerHandler {
     };
 
     const timeoutResult = TimerService.checkTimeout(timerState, currentPlayer);
+    
+    console.log('🎯 TIMEOUT RESULT:', {
+      gameCode: game.game_code,
+      hasTimedOut: timeoutResult.hasTimedOut,
+      shouldAutoMove: timeoutResult.shouldAutoMove,
+      shouldEndGame: timeoutResult.shouldEndGame,
+      strikes: timeoutResult.strikesUsed
+    });
 
     if (!timeoutResult.hasTimedOut) {
       return {
@@ -110,10 +140,18 @@ export class TimerHandler {
 
     // Generate auto-move
     const autoMove = AutoMoveGenerator.generateMove(game.game_state);
+    
+    console.log('🎲 AUTO-MOVE GENERATION:', {
+      gameCode: game.game_code,
+      autoMoveGenerated: !!autoMove,
+      autoMove: autoMove ? { from: autoMove.from, to: autoMove.to } : null
+    });
 
     if (!autoMove) {
       // No legal moves - game over
       const winnerId = currentPlayer === 'player1' ? game.player2_id : game.player1_id;
+      
+      console.log('❌ NO LEGAL MOVES - GAME OVER');
       
       return {
         shouldContinue: false,
@@ -127,6 +165,8 @@ export class TimerHandler {
 
     // Add strike to player
     await TimerModel.addStrike(game.game_code, currentPlayer);
+    
+    console.log('✅ AUTO-MOVE SUCCESS - Strike added');
 
     return {
       shouldContinue: true,
