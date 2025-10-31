@@ -434,6 +434,17 @@ export class GameController {
         updatedGameSession.player2_time_remaining = timerData.player2.timeRemaining;
       }
 
+      // Broadcast move to all players in the game room via Socket.IO
+      const io = req.app.get('io');
+      if (io && updatedGameSession) {
+        console.log('📡 Broadcasting move to game room:', gameCode);
+        io.to(`game:${gameCode}`).emit('game_state_updated', {
+          gameSession: updatedGameSession,
+          move: moveWithTimestamp,
+          autoMove: isAutoMove
+        });
+      }
+
       res.json({
         message: isAutoMove ? 'Auto-move made due to timeout' : 'Move made successfully',
         gameSession: updatedGameSession,
