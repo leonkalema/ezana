@@ -377,24 +377,39 @@ function createGameStore() {
     },
 
     async handleTimeout(): Promise<void> {
+      console.log('🔥 handleTimeout() CALLED');
+      
       const currentState = get(gameStore);
       
+      console.log('📊 Current game state:', {
+        hasGame: !!currentState.currentGame,
+        playerRole: currentState.playerRole,
+        gameCode: currentState.currentGame?.game_code,
+        currentTurn: currentState.currentGame?.current_turn
+      });
+      
       if (!currentState.currentGame || !currentState.playerRole) {
-        console.error('Cannot handle timeout: no active game');
+        console.error('❌ Cannot handle timeout: no active game or player role');
         return;
       }
 
       console.log('⏰ Handling timeout for', currentState.playerRole);
       
+      const requestPayload = {
+        gameCode: currentState.currentGame.game_code,
+        move: {
+          from: { row: 0, col: 0 }, // Dummy move - backend will replace with auto-move
+          to: { row: 0, col: 0 }
+        }
+      };
+      
+      console.log('📤 Sending timeout request to backend:', requestPayload);
+      
       try {
         // Make a dummy move - the backend will detect timeout and generate auto-move
-        const response = await apiClient.makeMove({
-          gameCode: currentState.currentGame.game_code,
-          move: {
-            from: { row: 0, col: 0 }, // Dummy move - backend will replace with auto-move
-            to: { row: 0, col: 0 }
-          }
-        });
+        const response = await apiClient.makeMove(requestPayload);
+        
+        console.log('📥 Received response from backend:', response);
 
         if (response.gameSession) {
           update(state => ({

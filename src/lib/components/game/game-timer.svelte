@@ -15,6 +15,12 @@
   
   // Trigger timeout when time reaches 0
   $: if (timeRemaining <= 0 && isActive && isCurrentPlayer && !hasTriggeredTimeout) {
+    console.log('🚨 TIMEOUT DETECTED:', {
+      timeRemaining,
+      isActive,
+      isCurrentPlayer,
+      hasTriggeredTimeout
+    });
     hasTriggeredTimeout = true;
     handleTimeout();
   }
@@ -26,8 +32,13 @@
   
   async function handleTimeout() {
     console.log('⏰ Timer expired! Triggering auto-move...');
-    // Trigger auto-move through game store
-    await gameStore.handleTimeout();
+    try {
+      // Trigger auto-move through game store
+      await gameStore.handleTimeout();
+      console.log('✅ Timeout handled successfully');
+    } catch (error) {
+      console.error('❌ Timeout handling failed:', error);
+    }
   }
 
   function formatTime(seconds: number): string {

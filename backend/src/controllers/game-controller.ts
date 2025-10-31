@@ -201,13 +201,21 @@ export class GameController {
 
   static async makeMove(req: AuthenticatedRequest<{}, {}, GameMoveInput>, res: Response): Promise<void> {
     try {
+      console.log('📥 MOVE REQUEST RECEIVED:', {
+        timestamp: new Date().toISOString(),
+        body: req.body,
+        userId: req.user?.id
+      });
+      
       const userId = req.user?.id;
       if (!userId) {
+        console.log('❌ No user ID - unauthorized');
         res.status(401).json({ error: 'User not authenticated' });
         return;
       }
 
       const { gameCode, move } = req.body;
+      console.log('🎮 Processing move:', { gameCode, move, userId });
 
       // Get game session
       const gameSession = await GameSessionModel.findByGameCode(gameCode);
