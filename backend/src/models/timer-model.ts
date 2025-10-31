@@ -64,7 +64,7 @@ export class TimerModel {
     const query = `
       UPDATE game_sessions
       SET 
-        ${player}_strikes = COALESCE(${player}_strikes, 0) + 1,
+        ${player}_strikes = LEAST(COALESCE(${player}_strikes, 0) + 1, 3),
         ${player}_time_remaining = 60,
         last_move_timestamp = CURRENT_TIMESTAMP
       WHERE game_code = ?

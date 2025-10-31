@@ -54,7 +54,8 @@
             <span class="text-xs text-blue-600 font-bold">(YOU)</span>
           {/if}
           <StrikeIndicator 
-            strikes={currentGame.player1_strikes || 0}
+            strikes={Math.min(currentGame.player1_strikes || 0, 3)}
+            maxStrikes={3}
             variant="compact"
           />
           <GameTimer
@@ -74,7 +75,8 @@
             isCurrentPlayer={currentGame.current_turn === 'player2' && playerRole === 'player2'}
           />
           <StrikeIndicator 
-            strikes={currentGame.player2_strikes || 0}
+            strikes={Math.min(currentGame.player2_strikes || 0, 3)}
+            maxStrikes={3}
             variant="compact"
           />
           <div class="w-3 h-3 bg-gray-800 rounded-full {playerRole === 'player2' && isMyTurn ? 'animate-pulse' : ''}"></div>
