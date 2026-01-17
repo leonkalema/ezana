@@ -1,6 +1,6 @@
 import { db } from '../database/connection.js';
 
-export type LedgerKind = 'deposit' | 'stake_hold' | 'stake_payout' | 'stake_refund';
+export type LedgerKind = 'deposit' | 'withdrawal' | 'stake_hold' | 'stake_payout' | 'stake_refund';
 export type LedgerDirection = 'credit' | 'debit';
 
 export interface LedgerRow {
